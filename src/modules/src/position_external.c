@@ -70,7 +70,9 @@ static uint16_t thresKill = 800;
 static bool startFlag = false;
 static bool fuckYou = false;
 //------------------------------------------------------------------------------
-
+data_start_avoid_target avoidTarget = NULL;
+data_start_avoid_target avoidDrone = NULL;
+//------------------------------------------------------------------------------
 
 // #define MEASURE_PACKET_DROPS
 #ifdef MEASURE_PACKET_DROPS
@@ -206,7 +208,7 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       positionExternalFresh = true;
       positionExternalFresh2 = true;
     }
-    else if (d->pose[i].id == INTERACTIVE_ID && interactiveCallback != NULL) {
+    else if (d->pose[i].id == INTERACTIVE_ID) { // && interactiveCallback != NULL) {
       float x = position_fix24_to_float(d->pose[i].x);
       float y = position_fix24_to_float(d->pose[i].y);
       float z = position_fix24_to_float(d->pose[i].z);
@@ -216,7 +218,29 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       quatdecompress(d->pose[i].quat, q);
       struct quat quat = qloadf(q);
 
-      (*interactiveCallback)(&pos, &quat);
+      avoidTarget.x = x;
+      avoidTarget.y = y;
+      avoidTarget.z = z;
+      avoidTarget.max_displacement = 1.5f;
+      avoidTarget.max_speed = 0.3f;
+
+      // (*interactiveCallback)(&pos, &quat);
+    }
+    else if (d->pose[i].id == DRONE_ID) {
+      float x = position_fix24_to_float(d->pose[i].x);
+      float y = position_fix24_to_float(d->pose[i].y);
+      float z = position_fix24_to_float(d->pose[i].z);
+      struct vec pos = mkvec(x, y, z);
+
+      float q[4];
+      quatdecompress(d->pose[i].quat, q);
+      struct quat quat = qloadf(q);
+
+      avoidDrone.x = x;
+      avoidDrone.y = y;
+      avoidDrone.z = z;
+      avoidDrone.max_displacement = 0.5f;
+      avoidDrone.max_speed = 0.1f;
     }
   }
 #endif

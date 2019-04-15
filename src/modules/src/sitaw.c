@@ -33,6 +33,7 @@
 #include "trigger.h"
 #include "sitaw.h"
 #include "commander.h"
+#include "position_external.h"
 
 /* Trigger object used to detect Free Fall situation. */
 static trigger_t sitAwFFAccWZ;
@@ -154,6 +155,40 @@ static void sitAwPreThrustUpdateCallOut(setpoint_t *setpoint)
 #endif
 }
 
+static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
+{
+  #if defined(SITAW_ENABLED)
+  #ifdef SITAW_CA_ENABLED
+    // Routine for avoiding the obstacle or a drone
+
+    if(avoidDrone != NULL) {
+      const float gainf = avoidDrone.max_speed;
+      const float delta_max = avoidDrone.max_displacement;
+      float dx = state.position.x - avoidDrone.x;
+      float dy = state.position.y - avoidDrone.y;
+      float dz = state.position.z - avoidDrone.z;
+      float delta = sqrtf(dx*dx + dy*dy + dz*dz);
+
+      setpoint.position.x += fmax(gainf / (delta + delta*delta), delta_max) * dx / delta;
+      setpoint.position.y += fmax(gainf / (delta + delta*delta), delta_max) * dy / delta;
+      setpoint.position.z += fmax(gainf / (delta + delta*delta), delta_max) * dz / delta;
+    }
+    if(avoidTarget != NULL) {
+      const float gainf = avoidTarget.max_speed;
+      const float delta_max = avoidTarget.max_displacement;
+      float dx = state.position.x - avoidTarget.x;
+      float dy = state.position.y - avoidTarget.y;
+      float dz = state.position.z - avoidTarget.z;
+      float delta = sqrtf(dx*dx + dy*dy + dz*dz);
+
+      setpoint.position.x += fmax(gainf / (delta + delta*delta), delta_max) * dx / delta;
+      setpoint.position.y += fmax(gainf / (delta + delta*delta), delta_max) * dy / delta;
+      setpoint.position.z += fmax(gainf / (delta + delta*delta), delta_max) * dz / delta;
+    }
+  #endif
+  #endif
+}
+
 /**
  * Update setpoint according to current situation
  *
@@ -163,6 +198,7 @@ static void sitAwPreThrustUpdateCallOut(setpoint_t *setpoint)
 void sitAwUpdateSetpoint(setpoint_t *setpoint, const sensorData_t *sensorData,
                                                const state_t *state)
 {
+  sitAwCollisionAvoidance(sensorData, state);
   sitAwPostStateUpdateCallOut(sensorData, state);
   sitAwPreThrustUpdateCallOut(setpoint);
 }

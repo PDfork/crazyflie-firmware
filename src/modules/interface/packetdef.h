@@ -87,6 +87,7 @@ static inline float position_fix24_to_float(posFixed24_t x)
 // special id for the "interactive object" e.g. in "avoid human" demo
 // this id is reserved and should not be used for a Crazyflie
 static int const INTERACTIVE_ID = 0xFF;
+static int const DRONE_ID = 0x28;
 
 struct data_vicon {
   struct {

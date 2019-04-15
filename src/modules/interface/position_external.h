@@ -49,6 +49,8 @@ void positionExternalUpdateDt();
 
 extern bool positionExternalFresh;
 extern bool positionExternalFresh2;
+extern data_start_avoid_target avoidTarget;
+extern data_start_avoid_target avoidDrone;
 
 // position of the "interactive object" i.e. in "avoid human" demo
 typedef void (*positionInteractiveCallback)(struct vec const *, struct quat const *);
