@@ -36,8 +36,6 @@
 #include "num.h"
 #include "configblock.h"
 #include "log.h"
-#include "math3d.h"
-#include "packetdef.h"
 #include "quatcompress.h"
 // ------------------ for qick kill fix ----------------------------------------
 #include "crtp_commander_high_level.h"
@@ -70,8 +68,8 @@ static uint16_t thresKill = 800;
 static bool startFlag = false;
 static bool fuckYou = false;
 //------------------------------------------------------------------------------
-data_start_avoid_target avoidTarget = NULL;
-data_start_avoid_target avoidDrone = NULL;
+struct data_start_avoid_target avoidTarget[5];
+struct data_flocking neighborDrones[5];
 //------------------------------------------------------------------------------
 
 // #define MEASURE_PACKET_DROPS
@@ -93,6 +91,13 @@ void positionExternalInit(void)
 
   // crtpInit();
   crtpRegisterPortCB(CRTP_PORT_POSEXT, positionExternalCrtpCB);
+
+  // init drone droneIDs
+  neighborDrones[0].id = -1;
+  neighborDrones[1].id = -1;
+  neighborDrones[2].id = -1;
+  neighborDrones[3].id = -1;
+  neighborDrones[4].id = -1;
 
   isInit = true;
 
@@ -157,6 +162,32 @@ void setPositionInteractiveCallback(positionInteractiveCallback cb)
   interactiveCallback = cb;
 }
 
+int8_t checkID(int8_t id)
+{
+  uint8_t i;
+  int8_t droneIDs[6] = {neighborDrones[0].id, neighborDrones[1].id, neighborDrones[2].id, neighborDrones[3].id, neighborDrones[4].id, id}; // 5 drone IDs + 1 temp id for comparison
+  for (i = 0; droneIDs[i] != id && droneIDs[i] >= 0; i++);
+  if (i == 5) {
+    return -1;
+  }
+  else {
+    return i;
+  }
+}
+
+int8_t checkDistance(float dist)
+{
+  uint8_t i;
+  float droneDist[6] = {neighborDrones[0].lastDistance, neighborDrones[1].lastDistance, neighborDrones[2].lastDistance, neighborDrones[3].lastDistance, neighborDrones[4].lastDistance, dist}; // 5 drones + 1 temp for comparison
+  for (i = 0; droneDist[i] != dist; i++);
+  if (i == 5) {
+    return -1;
+  }
+  else {
+    return i;
+  }
+}
+
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
 #ifdef MEASURE_PACKET_DROPS
@@ -212,35 +243,81 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       float x = position_fix24_to_float(d->pose[i].x);
       float y = position_fix24_to_float(d->pose[i].y);
       float z = position_fix24_to_float(d->pose[i].z);
-      struct vec pos = mkvec(x, y, z);
+      //struct vec pos = mkvec(x, y, z);
 
-      float q[4];
-      quatdecompress(d->pose[i].quat, q);
-      struct quat quat = qloadf(q);
+      //float q[4];
+      //quatdecompress(d->pose[i].quat, q);
+      //struct quat quat = qloadf(q);
 
-      avoidTarget.x = x;
-      avoidTarget.y = y;
-      avoidTarget.z = z;
-      avoidTarget.max_displacement = 1.5f;
-      avoidTarget.max_speed = 0.3f;
+      avoidTarget[0].x = x;
+      avoidTarget[0].y = y;
+      avoidTarget[0].z = z;
+      avoidTarget[0].max_displacement = 1.5f;
+      avoidTarget[0].max_speed = 0.3f;
 
+      //positionExternalTarget = true;
       // (*interactiveCallback)(&pos, &quat);
     }
-    else if (d->pose[i].id == DRONE_ID) {
+    /*else if (d->pose[i].id == DRONE_ID) {
       float x = position_fix24_to_float(d->pose[i].x);
       float y = position_fix24_to_float(d->pose[i].y);
       float z = position_fix24_to_float(d->pose[i].z);
-      struct vec pos = mkvec(x, y, z);
+      //struct vec pos = mkvec(x, y, z);
 
-      float q[4];
-      quatdecompress(d->pose[i].quat, q);
-      struct quat quat = qloadf(q);
+      //float q[4];
+      //quatdecompress(d->pose[i].quat, q);
+      //struct quat quat = qloadf(q);
 
       avoidDrone.x = x;
       avoidDrone.y = y;
       avoidDrone.z = z;
-      avoidDrone.max_displacement = 0.5f;
-      avoidDrone.max_speed = 0.1f;
+      avoidDrone.max_displacement = 1.5f;
+      avoidDrone.max_speed = 0.5f;
+
+      positionExternalDrone = true;
+    }*/
+    else { // Prototype of checking drone distances
+      int8_t temp_id = d->pose[i].id;
+
+      float x = position_fix24_to_float(d->pose[i].x);
+      float y = position_fix24_to_float(d->pose[i].y);
+      /*float q[4];
+      quatdecompress(d->pose[i].quat, q);
+      struct vec v = quat2rpy(mkquat(q[0],q[1],q[2],q[3]));
+      float yaw = v.z;*/
+
+      float dx = lastX - x;
+      float dy = lastY - y;
+      float dist = sqrtf(dx*dx + dy*dy);
+
+      if (dist < SEARCH_RADIUS) {
+        int8_t indx = checkID(temp_id); // check if ID is already in the list
+        if (indx != -1) {
+          if (neighborDrones[indx].id == temp_id) {
+            neighborDrones[indx].velocity.x = (x - neighborDrones[indx].position.x)/0.005f;
+            neighborDrones[indx].velocity.y = (y - neighborDrones[indx].position.y)/0.005f;
+          }
+          else {
+            neighborDrones[indx].id = temp_id;
+            neighborDrones[indx].velocity.x = 0.0f;
+            neighborDrones[indx].velocity.y = 0.0f;
+          }
+          neighborDrones[indx].position.x = x;
+          neighborDrones[indx].position.y = y;
+          neighborDrones[indx].lastDistance = dist;
+        }
+        else {
+          int8_t indx = checkDistance(dist); // check if distance is smaller than one of the list
+          if (indx != -1) {
+            neighborDrones[indx].id = temp_id;
+            neighborDrones[indx].velocity.x = 0.0f;
+            neighborDrones[indx].velocity.y = 0.0f;
+            neighborDrones[indx].position.x = x;
+            neighborDrones[indx].position.y = y;
+            neighborDrones[indx].lastDistance = dist;
+          }
+        }
+      }
     }
   }
 #endif
@@ -253,6 +330,14 @@ LOG_ADD(LOG_FLOAT, v_z, &v_z)
 LOG_ADD(LOG_UINT16, dt, &dt) // zueit seit letztem packet startFlag
 LOG_ADD(LOG_UINT8, startFlag, &startFlag) // by FlW ----------------------------
 LOG_ADD(LOG_UINT8, fuckYou, &fuckYou) // fuck you facebook filter by FLW -------
+// neighborDrones Log:
+LOG_ADD(LOG_UINT8, nID0, &neighborDrones[0].id)
+LOG_ADD(LOG_FLOAT, nX0, &neighborDrones[0].position.x)
+LOG_ADD(LOG_FLOAT, nY0, &neighborDrones[0].position.y)
+LOG_ADD(LOG_FLOAT, nVX0, &neighborDrones[0].velocity.x)
+LOG_ADD(LOG_FLOAT, nVY0, &neighborDrones[0].velocity.y)
+LOG_ADD(LOG_FLOAT, nDist0, &neighborDrones[0].lastDistance)
+// neighborDrones Log end
 LOG_ADD(LOG_FLOAT, roll, &posExtLastRPY.x)
 LOG_ADD(LOG_FLOAT, pitch, &posExtLastRPY.y)
 LOG_ADD(LOG_FLOAT, yaw, &posExtLastRPY.z)
@@ -261,7 +346,7 @@ LOG_ADD(LOG_FLOAT, y, &lastY)
 LOG_ADD(LOG_FLOAT, z, &lastZ)
 LOG_GROUP_STOP(vicon)
 
-#ifdef MEASURE_PACKET_DROPS
+/*#ifdef MEASURE_PACKET_DROPS
 LOG_GROUP_START(pacDrop)
 LOG_ADD(LOG_UINT32, d0, &packet_drop_counts[0])
 LOG_ADD(LOG_UINT32, d1, &packet_drop_counts[1])
@@ -275,4 +360,4 @@ LOG_ADD(LOG_UINT32, d8, &packet_drop_counts[8])
 LOG_ADD(LOG_UINT32, d9p, &packet_drop_counts[9])
 LOG_ADD(LOG_UINT32, total, &total_packet_count)
 LOG_GROUP_STOP(pacDrop)
-#endif
+#endif*/

@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include "math3d.h"
+#include "packetdef.h"
 
 void positionExternalInit(void);
 bool positionExternalTest(void);
@@ -49,11 +50,21 @@ void positionExternalUpdateDt();
 
 extern bool positionExternalFresh;
 extern bool positionExternalFresh2;
-extern data_start_avoid_target avoidTarget;
-extern data_start_avoid_target avoidDrone;
+extern uint8_t numExternalTarget;
+extern uint8_t numExternalDrone;
+extern struct data_start_avoid_target avoidTarget[5];
+extern struct data_flocking neighborDrones[5];
+
+static float const SEARCH_RADIUS = 5.0f;
+static float const SEPARATION_RADIUS = 1.5f;
+static float const TARGET_RADIUS = 0.1f;
+static float const ANISOTROPY = 0.5f;
+static float const REP_GAIN = 2.5f;
 
 // position of the "interactive object" i.e. in "avoid human" demo
 typedef void (*positionInteractiveCallback)(struct vec const *, struct quat const *);
 void setPositionInteractiveCallback(positionInteractiveCallback cb);
+int8_t checkID(int8_t id);
+int8_t checkDistance(float dist);
 
 #endif /* POSITION_EXTERNAL_H_ */

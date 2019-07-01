@@ -211,17 +211,17 @@ static float procNoiseAcc_z = 1.0f;
 static float procNoiseVel = 0;
 static float procNoisePos = 0;
 static float procNoiseAtt = 0;
-static float measNoiseBaro = 2.0f; // meters
+// static float measNoiseBaro = 2.0f; // meters
 static float measNoiseGyro_rollpitch = 0.1f; // radians per second
 static float measNoiseGyro_yaw = 0.1f; // radians per second
-
+//
 static float initialX = 0.5;
 static float initialY = 0.5;
 static float initialZ = 0.0;
 
 // We track a TDOA skew as part of the Kalman filter
 static const float stdDevInitialSkew = 0.1;
-static float procNoiseSkew = 10e-6f; // seconds per second^2 (is multiplied by dt to give skew noise)
+// static float procNoiseSkew = 10e-6f; // seconds per second^2 (is multiplied by dt to give skew noise)
 
 /**
  * Quadrocopter State
@@ -275,7 +275,7 @@ static uint32_t gyroAccumulatorCount;
 static uint32_t baroAccumulatorCount;
 static bool quadIsFlying = false;
 static int32_t lastTDOAUpdate;
-static float stateSkew;
+// static float stateSkew;
 static float varSkew;
 static uint32_t lastFlightCmd;
 static uint32_t takeoffTime;
@@ -1432,62 +1432,62 @@ void estimatorKalmanGetEstimatedPos(point_t* pos) {
 }
 
 // Temporary development groups
-LOG_GROUP_START(kalman_states)
-  LOG_ADD(LOG_FLOAT, ox, &S[STATE_X])
-  LOG_ADD(LOG_FLOAT, oy, &S[STATE_Y])
-  LOG_ADD(LOG_FLOAT, vx, &S[STATE_PX])
-  LOG_ADD(LOG_FLOAT, vy, &S[STATE_PY])
-LOG_GROUP_STOP(kalman_states)
-
-LOG_GROUP_START(kalman_pred)
-  LOG_ADD(LOG_FLOAT, predNX, &predictedNX)
-  LOG_ADD(LOG_FLOAT, predNY, &predictedNY)
-  LOG_ADD(LOG_FLOAT, measNX, &measuredNX)
-  LOG_ADD(LOG_FLOAT, measNY, &measuredNY)
-LOG_GROUP_STOP(kalman_pred)
+// LOG_GROUP_START(kalman_states)
+//   LOG_ADD(LOG_FLOAT, ox, &S[STATE_X])
+//   LOG_ADD(LOG_FLOAT, oy, &S[STATE_Y])
+//   LOG_ADD(LOG_FLOAT, vx, &S[STATE_PX])
+//   LOG_ADD(LOG_FLOAT, vy, &S[STATE_PY])
+// LOG_GROUP_STOP(kalman_states)
+//
+// LOG_GROUP_START(kalman_pred)
+//   LOG_ADD(LOG_FLOAT, predNX, &predictedNX)
+//   LOG_ADD(LOG_FLOAT, predNY, &predictedNY)
+//   LOG_ADD(LOG_FLOAT, measNX, &measuredNX)
+//   LOG_ADD(LOG_FLOAT, measNY, &measuredNY)
+// LOG_GROUP_STOP(kalman_pred)
 
 // Stock log groups
-LOG_GROUP_START(kalman)
-  LOG_ADD(LOG_UINT8, inFlight, &quadIsFlying)
-  LOG_ADD(LOG_FLOAT, stateX, &S[STATE_X])
-  LOG_ADD(LOG_FLOAT, stateY, &S[STATE_Y])
-  LOG_ADD(LOG_FLOAT, stateZ, &S[STATE_Z])
-  LOG_ADD(LOG_FLOAT, statePX, &S[STATE_PX])
-  LOG_ADD(LOG_FLOAT, statePY, &S[STATE_PY])
-  LOG_ADD(LOG_FLOAT, statePZ, &S[STATE_PZ])
-  LOG_ADD(LOG_FLOAT, stateD0, &S[STATE_D0])
-  LOG_ADD(LOG_FLOAT, stateD1, &S[STATE_D1])
-  LOG_ADD(LOG_FLOAT, stateD2, &S[STATE_D2])
-  LOG_ADD(LOG_FLOAT, stateSkew, &stateSkew)
-  LOG_ADD(LOG_FLOAT, varX, &P[STATE_X][STATE_X])
-  LOG_ADD(LOG_FLOAT, varY, &P[STATE_Y][STATE_Y])
-  LOG_ADD(LOG_FLOAT, varZ, &P[STATE_Z][STATE_Z])
-  LOG_ADD(LOG_FLOAT, varPX, &P[STATE_PX][STATE_PX])
-  LOG_ADD(LOG_FLOAT, varPY, &P[STATE_PY][STATE_PY])
-  LOG_ADD(LOG_FLOAT, varPZ, &P[STATE_PZ][STATE_PZ])
-  LOG_ADD(LOG_FLOAT, varD0, &P[STATE_D0][STATE_D0])
-  LOG_ADD(LOG_FLOAT, varD1, &P[STATE_D1][STATE_D1])
-  LOG_ADD(LOG_FLOAT, varD2, &P[STATE_D2][STATE_D2])
-  LOG_ADD(LOG_FLOAT, varSkew, &varSkew)
-  LOG_ADD(LOG_FLOAT, q0, &q[0])
-  LOG_ADD(LOG_FLOAT, q1, &q[1])
-  LOG_ADD(LOG_FLOAT, q2, &q[2])
-  LOG_ADD(LOG_FLOAT, q3, &q[3])
-LOG_GROUP_STOP(kalman)
-
-PARAM_GROUP_START(kalman)
-  PARAM_ADD(PARAM_UINT8, resetEstimation, &resetEstimation)
-  PARAM_ADD(PARAM_UINT8, quadIsFlying, &quadIsFlying)
-  PARAM_ADD(PARAM_FLOAT, pNAcc_xy, &procNoiseAcc_xy)
-  PARAM_ADD(PARAM_FLOAT, pNAcc_z, &procNoiseAcc_z)
-  PARAM_ADD(PARAM_FLOAT, pNVel, &procNoiseVel)
-  PARAM_ADD(PARAM_FLOAT, pNPos, &procNoisePos)
-  PARAM_ADD(PARAM_FLOAT, pNAtt, &procNoiseAtt)
-  PARAM_ADD(PARAM_FLOAT, pNSkew, &procNoiseSkew)
-  PARAM_ADD(PARAM_FLOAT, mNBaro, &measNoiseBaro)
-  PARAM_ADD(PARAM_FLOAT, mNGyro_rollpitch, &measNoiseGyro_rollpitch)
-  PARAM_ADD(PARAM_FLOAT, mNGyro_yaw, &measNoiseGyro_yaw)
-  PARAM_ADD(PARAM_FLOAT, initialX, &initialX)
-  PARAM_ADD(PARAM_FLOAT, initialY, &initialY)
-  PARAM_ADD(PARAM_FLOAT, initialZ, &initialZ)
-PARAM_GROUP_STOP(kalman)
+// LOG_GROUP_START(kalman)
+//   LOG_ADD(LOG_UINT8, inFlight, &quadIsFlying)
+//   LOG_ADD(LOG_FLOAT, stateX, &S[STATE_X])
+//   LOG_ADD(LOG_FLOAT, stateY, &S[STATE_Y])
+//   LOG_ADD(LOG_FLOAT, stateZ, &S[STATE_Z])
+//   LOG_ADD(LOG_FLOAT, statePX, &S[STATE_PX])
+//   LOG_ADD(LOG_FLOAT, statePY, &S[STATE_PY])
+//   LOG_ADD(LOG_FLOAT, statePZ, &S[STATE_PZ])
+//   LOG_ADD(LOG_FLOAT, stateD0, &S[STATE_D0])
+//   LOG_ADD(LOG_FLOAT, stateD1, &S[STATE_D1])
+//   LOG_ADD(LOG_FLOAT, stateD2, &S[STATE_D2])
+//   LOG_ADD(LOG_FLOAT, stateSkew, &stateSkew)
+//   LOG_ADD(LOG_FLOAT, varX, &P[STATE_X][STATE_X])
+//   LOG_ADD(LOG_FLOAT, varY, &P[STATE_Y][STATE_Y])
+//   LOG_ADD(LOG_FLOAT, varZ, &P[STATE_Z][STATE_Z])
+//   LOG_ADD(LOG_FLOAT, varPX, &P[STATE_PX][STATE_PX])
+//   LOG_ADD(LOG_FLOAT, varPY, &P[STATE_PY][STATE_PY])
+//   LOG_ADD(LOG_FLOAT, varPZ, &P[STATE_PZ][STATE_PZ])
+//   LOG_ADD(LOG_FLOAT, varD0, &P[STATE_D0][STATE_D0])
+//   LOG_ADD(LOG_FLOAT, varD1, &P[STATE_D1][STATE_D1])
+//   LOG_ADD(LOG_FLOAT, varD2, &P[STATE_D2][STATE_D2])
+//   LOG_ADD(LOG_FLOAT, varSkew, &varSkew)
+//   LOG_ADD(LOG_FLOAT, q0, &q[0])
+//   LOG_ADD(LOG_FLOAT, q1, &q[1])
+//   LOG_ADD(LOG_FLOAT, q2, &q[2])
+//   LOG_ADD(LOG_FLOAT, q3, &q[3])
+// LOG_GROUP_STOP(kalman)
+//
+// PARAM_GROUP_START(kalman)
+//   PARAM_ADD(PARAM_UINT8, resetEstimation, &resetEstimation)
+//   PARAM_ADD(PARAM_UINT8, quadIsFlying, &quadIsFlying)
+//   PARAM_ADD(PARAM_FLOAT, pNAcc_xy, &procNoiseAcc_xy)
+//   PARAM_ADD(PARAM_FLOAT, pNAcc_z, &procNoiseAcc_z)
+//   PARAM_ADD(PARAM_FLOAT, pNVel, &procNoiseVel)
+//   PARAM_ADD(PARAM_FLOAT, pNPos, &procNoisePos)
+//   PARAM_ADD(PARAM_FLOAT, pNAtt, &procNoiseAtt)
+//   PARAM_ADD(PARAM_FLOAT, pNSkew, &procNoiseSkew)
+//   PARAM_ADD(PARAM_FLOAT, mNBaro, &measNoiseBaro)
+//   PARAM_ADD(PARAM_FLOAT, mNGyro_rollpitch, &measNoiseGyro_rollpitch)
+//   PARAM_ADD(PARAM_FLOAT, mNGyro_yaw, &measNoiseGyro_yaw)
+//   PARAM_ADD(PARAM_FLOAT, initialX, &initialX)
+//   PARAM_ADD(PARAM_FLOAT, initialY, &initialY)
+//   PARAM_ADD(PARAM_FLOAT, initialZ, &initialZ)
+// PARAM_GROUP_STOP(kalman)

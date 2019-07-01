@@ -188,6 +188,11 @@ static inline struct vec vsub2(struct vec a, struct vec b, struct vec c) {
 	return vadd3(a, vneg(b), vneg(c));
 }
 
+// 2D angle between a and b
+static inline float vangle(struct vec a, struct vec b) {
+	return atan2f(b.y,b.x) - atan2f(a.y,a.x);
+}
+
 //
 // conversion to/from raw float and double arrays.
 //

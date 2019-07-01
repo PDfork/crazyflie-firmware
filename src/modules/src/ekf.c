@@ -231,7 +231,7 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 	static float S[EKF_M][EKF_M];
 	COPYMAT(S, old->P);
 	float const Rdiag[EKF_M] =
-		{ ext_var_xy, ext_var_xy, ext_var_xy, 
+		{ ext_var_xy, ext_var_xy, ext_var_xy,
 		  ext_var_vel, ext_var_vel, ext_var_vel,
 		  ext_var_q, ext_var_q, ext_var_q };
 	float R[EKF_M][EKF_M];
@@ -305,18 +305,18 @@ void ekf_vicon(struct ekf const *old, struct ekf *new, float const pos_vicon[3],
 }
 
 
-#ifndef CMOCK
-PARAM_GROUP_START(ekf)
-PARAM_ADD(PARAM_FLOAT, ext_var_xy, &ext_var_xy)
-PARAM_ADD(PARAM_FLOAT, ext_var_vel, &ext_var_vel)
-PARAM_ADD(PARAM_FLOAT, ext_var_q, &ext_var_q)
-PARAM_ADD(PARAM_FLOAT, gyro_var_xyz, &gyro_var_xyz)
-PARAM_ADD(PARAM_FLOAT, acc_var_xyz, &acc_var_xyz)
-PARAM_GROUP_STOP(ekf)
-
-LOG_GROUP_START(ekfprof)
-LOG_ADD(LOG_UINT32, usec_gain, &usec_gain)
-LOG_ADD(LOG_UINT32, usec_corr, &usec_corr)
-LOG_ADD(LOG_UINT32, usec_cov, &usec_cov)
-LOG_GROUP_STOP(ekfprof)
-#endif
+// #ifndef CMOCK
+// PARAM_GROUP_START(ekf)
+// PARAM_ADD(PARAM_FLOAT, ext_var_xy, &ext_var_xy)
+// PARAM_ADD(PARAM_FLOAT, ext_var_vel, &ext_var_vel)
+// PARAM_ADD(PARAM_FLOAT, ext_var_q, &ext_var_q)
+// PARAM_ADD(PARAM_FLOAT, gyro_var_xyz, &gyro_var_xyz)
+// PARAM_ADD(PARAM_FLOAT, acc_var_xyz, &acc_var_xyz)
+// PARAM_GROUP_STOP(ekf)
+//
+// LOG_GROUP_START(ekfprof)
+// LOG_ADD(LOG_UINT32, usec_gain, &usec_gain)
+// LOG_ADD(LOG_UINT32, usec_corr, &usec_corr)
+// LOG_ADD(LOG_UINT32, usec_cov, &usec_cov)
+// LOG_GROUP_STOP(ekfprof)
+// #endif

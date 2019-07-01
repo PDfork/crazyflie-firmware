@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <math.h>
+#include "math3d.h"
 
 #include "log.h"
 #include "param.h"
@@ -43,6 +44,21 @@ static trigger_t sitAwARAccZ;
 
 /* Trigger object used to detect Tumbled situation. */
 static trigger_t sitAwTuAngle;
+
+/* Trigger object used to detect Tumbled situation. */
+static uint8_t sitAwCAActive = 0;
+
+// Log variables
+static float targetX;
+static float targetY;
+static float stateX;
+static float stateY;
+static float offX;
+static float offY;
+static float droneID;
+static float velX;
+static float velY;
+static float velZ;
 
 #if defined(SITAW_ENABLED)
 
@@ -65,6 +81,16 @@ LOG_ADD(LOG_UINT8, FFAccWZDetected, &sitAwFFAccWZ.released)
 LOG_ADD(LOG_UINT8, ARDetected, &sitAwARAccZ.released)
 LOG_ADD(LOG_UINT8, TuDetected, &sitAwTuAngle.released)
 #endif
+LOG_ADD(LOG_FLOAT, tX, &targetX)
+LOG_ADD(LOG_FLOAT, tY, &targetY)
+LOG_ADD(LOG_FLOAT, stX, &stateX)
+LOG_ADD(LOG_FLOAT, stY, &stateY)
+LOG_ADD(LOG_FLOAT, offX, &offX)
+LOG_ADD(LOG_FLOAT, offY, &offY)
+LOG_ADD(LOG_FLOAT, dID, &droneID)
+LOG_ADD(LOG_FLOAT, vX, &velX)
+LOG_ADD(LOG_FLOAT, vY, &velY)
+LOG_ADD(LOG_FLOAT, vZ, &velZ)
 LOG_GROUP_STOP(sitAw)
 #endif /* SITAW_LOG_ENABLED */
 
@@ -84,6 +110,9 @@ PARAM_ADD(PARAM_FLOAT, ARaccZ, &sitAwARAccZ.threshold)
 PARAM_ADD(PARAM_UINT8, TuActive, &sitAwTuAngle.active)
 PARAM_ADD(PARAM_UINT32, TuTriggerCount, &sitAwTuAngle.triggerCount)
 PARAM_ADD(PARAM_FLOAT, TuAngle, &sitAwTuAngle.threshold)
+#endif
+#if defined(SITAW_CA_PARAM_ENABLED) /* Param variables for collision avoidance. */
+PARAM_ADD(PARAM_UINT8, CAActive, &sitAwCAActive)
 #endif
 PARAM_GROUP_STOP(sitAw)
 #endif /* SITAW_PARAM_ENABLED */
@@ -159,32 +188,131 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
 {
   #if defined(SITAW_ENABLED)
   #ifdef SITAW_CA_ENABLED
+  if (sitAwCAActive > 0) {
     // Routine for avoiding the obstacle or a drone
 
-    if(avoidDrone != NULL) {
-      const float gainf = avoidDrone.max_speed;
-      const float delta_max = avoidDrone.max_displacement;
-      float dx = state.position.x - avoidDrone.x;
-      float dy = state.position.y - avoidDrone.y;
-      float dz = state.position.z - avoidDrone.z;
-      float delta = sqrtf(dx*dx + dy*dy + dz*dz);
+    // 2D case (x,y)
+    struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
+    struct vec ri = {state->position.x, state->position.y, 0.0f};
 
-      setpoint.position.x += fmax(gainf / (delta + delta*delta), delta_max) * dx / delta;
-      setpoint.position.y += fmax(gainf / (delta + delta*delta), delta_max) * dy / delta;
-      setpoint.position.z += fmax(gainf / (delta + delta*delta), delta_max) * dz / delta;
-    }
-    if(avoidTarget != NULL) {
-      const float gainf = avoidTarget.max_speed;
-      const float delta_max = avoidTarget.max_displacement;
-      float dx = state.position.x - avoidTarget.x;
-      float dy = state.position.y - avoidTarget.y;
-      float dz = state.position.z - avoidTarget.z;
-      float delta = sqrtf(dx*dx + dy*dy + dz*dz);
+    struct vec rit = vsub(rt,ri);
 
-      setpoint.position.x += fmax(gainf / (delta + delta*delta), delta_max) * dx / delta;
-      setpoint.position.y += fmax(gainf / (delta + delta*delta), delta_max) * dy / delta;
-      setpoint.position.z += fmax(gainf / (delta + delta*delta), delta_max) * dz / delta;
+    float alpha; // angle between rit, vj
+    float theta; // angle between rij, rit
+    float rho; // angle between uij, -rit
+    struct vec vj;
+    struct vec vi_rep = {0.0f,0.0f,0.0f};
+    struct vec rij;
+    uint8_t j;
+    for (j = 0; j < 5; j++) {
+
+      if (neighborDrones[j].id >= 0) {
+        vj = neighborDrones[j].velocity;
+        rij = vsub(neighborDrones[j].position, ri);
+
+        // Logging
+        droneID = neighborDrones[j].id;
+        velX = vj.x;
+        velY = vj.y;
+        velZ = vj.z;
+
+        float umag = 0.0f; // magnitude of repulsion
+        float rmag = vmag(rij); // magnitude of rij
+
+        if (rmag < SEPARATION_RADIUS) {
+          umag = REP_GAIN * (SEPARATION_RADIUS - rmag);
+
+          alpha = vangle(rit, vj);
+          theta = vangle(rij, rit);
+
+          if (alpha <= M_PI_F/3.0f) {
+            if (theta <= M_PI_F/2) {
+              rho = ANISOTROPY * theta;
+            } else {
+              rho = M_PI_F + ANISOTROPY * (theta - M_PI_F);
+            }
+          } else {
+            rho = (1.0f - ANISOTROPY/2.0f) * (theta - M_PI_F) + M_PI_F;
+          }
+
+          float ux = cosf(rho) * -rit.x + sinf(rho) * -rit.y;
+          float uy = sinf(rho) * -rit.x + cosf(rho) * -rit.y;
+          struct vec uij = vnormalize(mkvec(ux, uy, 0.0f)); // new direction
+
+          vi_rep = vadd(vi_rep, vscl(umag, uij));
+        }
+      }
     }
+
+    struct vec offset = vi_rep;
+    float rit_mag = vmag(rit);
+    if (TARGET_RADIUS < rit_mag) {
+      offset = vadd(offset, vscl(REP_GAIN*(rit_mag - TARGET_RADIUS),vnormalize(rit)));
+    }
+    setpoint->position.x = state->position.x + offset.x;
+    setpoint->position.y = state->position.y + offset.y;
+
+    targetX = rt.x;
+    targetY = rt.y;
+    stateX = ri.x;
+    stateY = ri.y;
+    offX = offset.x;
+    offY = offset.y;
+/*
+    // 1. Alignment
+    uint8_t i, count;
+    struct vec v = mkvec(0.0f,0.0f,0.0f);
+    for (i = 0, count = 0; i < 5; i++) {
+      if (neighborDrones[i].id >= 0) {
+        v.x = v.x + cosf(neighborDrones[i].yaw);
+        v.y = v.y + sinf(neighborDrones[i].yaw);
+        count++;
+      }
+    }
+    v.x = v.x/count;
+    v.y = v.y/count;
+    v = vnormalize(v);
+    struct vec v_align = v;
+
+    // 2. Cohesion
+    v = mkvec(0.0f,0.0f,0.0f);
+    for (i = 0, count = 0; i < 5; i++) {
+      if (neighborDrones[i].id >= 0) {
+        v.x = v.x + neighborDrones[i].x;
+        v.y = v.y + neighborDrones[i].y;
+        count++;
+      }
+    }
+    v.x = v.x/count;
+    v.y = v.y/count;
+    v = vnormalize(v);
+    struct vec v_cohese = v;
+
+    // 3. Separation
+    v = mkvec(0.0f,0.0f,0.0f);
+    float dist;
+    struct vec v_dist;
+    for (i = 0, count = 0; i < 5; i++) {
+      v_dist = vsub(mkvec(state->position.x,state->position.y,0.0f), mkvec(neighborDrones[i].x,neighborDrones[i].y,0.0f));
+      dist = vmag(v_dist);
+      if (neighborDrones[i].id >= 0 && d < SEPARATION_RADIUS) {
+        v_dist = vdiv(vnormalize(vdist),dist);
+        v.x = v.x + v_dist.x;
+        v.y = v.y + v_dist.y;
+        count++;
+      }
+    }
+    v.x = v.x/count;
+    v.y = v.y/count;
+    struct vec v_separate = v;
+
+    struct vec offset = vadd3(vscl(0.25f,v_align),vscl(0.25f,v_cohese),vscl(0.5f,v_separate));
+
+    setpoint->position.x = setpoint->position.x + offset.x;
+    setpoint->position.y = setpoint->position.y + offset.y;
+  */
+
+  }
   #endif
   #endif
 }
@@ -198,7 +326,7 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
 void sitAwUpdateSetpoint(setpoint_t *setpoint, const sensorData_t *sensorData,
                                                const state_t *state)
 {
-  sitAwCollisionAvoidance(sensorData, state);
+  sitAwCollisionAvoidance(setpoint, state);
   sitAwPostStateUpdateCallOut(sensorData, state);
   sitAwPreThrustUpdateCallOut(setpoint);
 }
