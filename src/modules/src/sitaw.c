@@ -45,8 +45,12 @@ static trigger_t sitAwARAccZ;
 /* Trigger object used to detect Tumbled situation. */
 static trigger_t sitAwTuAngle;
 
-/* Trigger object used to detect Tumbled situation. */
+/* Trigger object used to detect collision avoidance. */
 static uint8_t sitAwCAActive = 0;
+
+// Break point of the crazyflie
+struct vec breakpoint;
+bool stopped = false;
 
 // Log variables
 static float targetX;
@@ -55,10 +59,6 @@ static float stateX;
 static float stateY;
 static float offX;
 static float offY;
-static float droneID;
-static float velX;
-static float velY;
-static float velZ;
 
 #if defined(SITAW_ENABLED)
 
@@ -81,17 +81,16 @@ LOG_ADD(LOG_UINT8, FFAccWZDetected, &sitAwFFAccWZ.released)
 LOG_ADD(LOG_UINT8, ARDetected, &sitAwARAccZ.released)
 LOG_ADD(LOG_UINT8, TuDetected, &sitAwTuAngle.released)
 #endif
+LOG_GROUP_STOP(sitAw)
+LOG_GROUP_START(colAw)
 LOG_ADD(LOG_FLOAT, tX, &targetX)
 LOG_ADD(LOG_FLOAT, tY, &targetY)
 LOG_ADD(LOG_FLOAT, stX, &stateX)
 LOG_ADD(LOG_FLOAT, stY, &stateY)
 LOG_ADD(LOG_FLOAT, offX, &offX)
 LOG_ADD(LOG_FLOAT, offY, &offY)
-LOG_ADD(LOG_FLOAT, dID, &droneID)
-LOG_ADD(LOG_FLOAT, vX, &velX)
-LOG_ADD(LOG_FLOAT, vY, &velY)
-LOG_ADD(LOG_FLOAT, vZ, &velZ)
-LOG_GROUP_STOP(sitAw)
+LOG_ADD(LOG_UINT8, test, &sitAwCAActive)
+LOG_GROUP_STOP(colAw)
 #endif /* SITAW_LOG_ENABLED */
 
 #if defined(SITAW_PARAM_ENABLED) /* Enable the param group. */
@@ -113,6 +112,13 @@ PARAM_ADD(PARAM_FLOAT, TuAngle, &sitAwTuAngle.threshold)
 #endif
 #if defined(SITAW_CA_PARAM_ENABLED) /* Param variables for collision avoidance. */
 PARAM_ADD(PARAM_UINT8, CAActive, &sitAwCAActive)
+PARAM_ADD(PARAM_FLOAT, SearchRadius, &SEARCH_RADIUS)
+PARAM_ADD(PARAM_FLOAT, SeparationRadius, &SEPARATION_RADIUS)
+PARAM_ADD(PARAM_FLOAT, TargetRadius, &TARGET_RADIUS)
+PARAM_ADD(PARAM_FLOAT, Anisotropy, &ANISOTROPY)
+PARAM_ADD(PARAM_FLOAT, RepGain, &REP_GAIN)
+PARAM_ADD(PARAM_FLOAT, tX, &targetX)
+PARAM_ADD(PARAM_FLOAT, tY, &targetY)
 #endif
 PARAM_GROUP_STOP(sitAw)
 #endif /* SITAW_PARAM_ENABLED */
@@ -190,6 +196,7 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
   #ifdef SITAW_CA_ENABLED
   if (sitAwCAActive > 0) {
     // Routine for avoiding the obstacle or a drone
+    stopped = false;
 
     // 2D case (x,y)
     struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
@@ -206,15 +213,9 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     uint8_t j;
     for (j = 0; j < 5; j++) {
 
-      if (neighborDrones[j].id >= 0) {
+      if (neighborDrones[j].id > 0) {
         vj = neighborDrones[j].velocity;
         rij = vsub(neighborDrones[j].position, ri);
-
-        // Logging
-        droneID = neighborDrones[j].id;
-        velX = vj.x;
-        velY = vj.y;
-        velZ = vj.z;
 
         float umag = 0.0f; // magnitude of repulsion
         float rmag = vmag(rij); // magnitude of rij
@@ -291,7 +292,7 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     // 3. Separation
     v = mkvec(0.0f,0.0f,0.0f);
     float dist;
-    struct vec v_dist;
+    struct vec v_dist;02131 1538050
     for (i = 0, count = 0; i < 5; i++) {
       v_dist = vsub(mkvec(state->position.x,state->position.y,0.0f), mkvec(neighborDrones[i].x,neighborDrones[i].y,0.0f));
       dist = vmag(v_dist);
@@ -312,7 +313,25 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     setpoint->position.y = setpoint->position.y + offset.y;
   */
 
+} else {
+  // Break and stop the crazyflie mid-air
+  if (stopped == false) {
+    breakpoint.x = state->position.x;
+    breakpoint.y = state->position.y;
+    breakpoint.z = state->position.z;
+    stopped = true;
   }
+
+    setpoint->position.x = breakpoint.x;
+    setpoint->position.y = breakpoint.y;
+    setpoint->position.z = breakpoint.z;
+    setpoint->velocity.x = 0.0;
+    setpoint->velocity.y = 0.0;
+    setpoint->velocity.z = 0.0;
+    setpoint->acceleration.x = 0.0;
+    setpoint->acceleration.y = 0.0;
+    setpoint->acceleration.z = 0.0;
+}
   #endif
   #endif
 }

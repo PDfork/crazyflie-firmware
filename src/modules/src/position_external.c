@@ -70,6 +70,13 @@ static bool fuckYou = false;
 //------------------------------------------------------------------------------
 struct data_start_avoid_target avoidTarget[5];
 struct data_flocking neighborDrones[5];
+struct vec3_s lastPositions[4];
+
+float SEARCH_RADIUS = 5.0f;
+float SEPARATION_RADIUS = 1.5f;
+float TARGET_RADIUS = 0.1f;
+float ANISOTROPY = 0.5f;
+float REP_GAIN = 1.5f;
 //------------------------------------------------------------------------------
 
 // #define MEASURE_PACKET_DROPS
@@ -188,6 +195,38 @@ int8_t checkDistance(float dist)
   }
 }
 
+struct vec estimateVel(float x, float y)
+{
+  lastPositions[0].x = lastPositions[1].x;
+  lastPositions[1].x = lastPositions[2].x;
+  lastPositions[2].x = lastPositions[3].x;
+  lastPositions[3].x = x;
+  lastPositions[0].y = lastPositions[1].y;
+  lastPositions[1].y = lastPositions[2].y;
+  lastPositions[2].y = lastPositions[3].y;
+  lastPositions[3].y = y;
+  lastPositions[0].timestamp = lastPositions[1].timestamp;
+  lastPositions[1].timestamp = lastPositions[2].timestamp;
+  lastPositions[2].timestamp = lastPositions[3].timestamp;
+  lastPositions[3].timestamp = xTaskGetTickCount();
+
+
+  float dt1 = (lastPositions[1].timestamp - lastPositions[0].timestamp) / 1000.0f;
+  float dt2 = (lastPositions[2].timestamp - lastPositions[1].timestamp) / 1000.0f;
+  float dt3 = (lastPositions[3].timestamp - lastPositions[2].timestamp) / 1000.0f;
+  struct vec p0 = mkvec(lastPositions[0].x,lastPositions[0].y,lastPositions[0].z);
+  struct vec p1 = mkvec(lastPositions[1].x,lastPositions[1].y,lastPositions[1].z);
+  struct vec p2 = mkvec(lastPositions[2].x,lastPositions[2].y,lastPositions[2].z);
+  struct vec p3 = mkvec(lastPositions[3].x,lastPositions[3].y,lastPositions[3].z);
+  struct vec v1 = vscl(1/dt1,vsub(p1,p0));
+  struct vec v2 = vscl(1/dt2,vsub(p2,p1));
+  struct vec v3 = vscl(1/dt3,vsub(p3,p2));
+
+  struct vec med = vscl(0.333333333f,vadd3(v1,v2,v3));
+
+  return med;
+}
+
 static void positionExternalCrtpCB(CRTPPacket* pk)
 {
 #ifdef MEASURE_PACKET_DROPS
@@ -290,21 +329,17 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       float dy = lastY - y;
       float dist = sqrtf(dx*dx + dy*dy);
 
-      if (dist < SEARCH_RADIUS) {
-        int8_t indx = checkID(temp_id); // check if ID is already in the list
+      int8_t indx = checkID(temp_id); // check if ID is already in the list
+      if (dist <= SEARCH_RADIUS) {
         if (indx != -1) {
-          if (neighborDrones[indx].id == temp_id) {
-            neighborDrones[indx].velocity.x = (x - neighborDrones[indx].position.x)/0.005f;
-            neighborDrones[indx].velocity.y = (y - neighborDrones[indx].position.y)/0.005f;
-          }
-          else {
-            neighborDrones[indx].id = temp_id;
-            neighborDrones[indx].velocity.x = 0.0f;
-            neighborDrones[indx].velocity.y = 0.0f;
-          }
           neighborDrones[indx].position.x = x;
           neighborDrones[indx].position.y = y;
           neighborDrones[indx].lastDistance = dist;
+
+          struct vec v_est = estimateVel(x,y);
+
+          neighborDrones[indx].velocity.x = v_est.x;
+          neighborDrones[indx].velocity.y = v_est.y;
         }
         else {
           int8_t indx = checkDistance(dist); // check if distance is smaller than one of the list
@@ -316,6 +351,10 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
             neighborDrones[indx].position.y = y;
             neighborDrones[indx].lastDistance = dist;
           }
+        }
+      } else { // dist > SEARCH_RADIUS
+        if (indx != -1) {
+          neighborDrones[indx].id = -1;
         }
       }
     }

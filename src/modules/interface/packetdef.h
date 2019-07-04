@@ -204,6 +204,7 @@ struct data_flocking {
   struct vec position;
   struct vec velocity;
   float lastDistance;
+  uint32_t lastTime;
 };
 
 struct data_set_group {
