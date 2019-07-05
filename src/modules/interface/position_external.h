@@ -61,6 +61,7 @@ extern float SEPARATION_RADIUS;
 extern float TARGET_RADIUS;
 extern float ANISOTROPY;
 extern float REP_GAIN;
+extern float MAX_SPEED;
 
 // position of the "interactive object" i.e. in "avoid human" demo
 typedef void (*positionInteractiveCallback)(struct vec const *, struct quat const *);

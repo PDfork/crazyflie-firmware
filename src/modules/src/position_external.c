@@ -77,6 +77,7 @@ float SEPARATION_RADIUS = 1.5f;
 float TARGET_RADIUS = 0.1f;
 float ANISOTROPY = 0.5f;
 float REP_GAIN = 1.5f;
+float MAX_SPEED = 0.15f; // m/s
 //------------------------------------------------------------------------------
 
 // #define MEASURE_PACKET_DROPS

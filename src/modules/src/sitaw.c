@@ -48,9 +48,14 @@ static trigger_t sitAwTuAngle;
 /* Trigger object used to detect collision avoidance. */
 static uint8_t sitAwCAActive = 0;
 
+/* Trigger object used to break. */
+static uint8_t sitAwBreak = 0;
+
 // Break point of the crazyflie
 struct vec breakpoint;
 bool stopped = false;
+
+static uint64_t lastTime = 0;
 
 // Log variables
 static float targetX;
@@ -89,7 +94,6 @@ LOG_ADD(LOG_FLOAT, stX, &stateX)
 LOG_ADD(LOG_FLOAT, stY, &stateY)
 LOG_ADD(LOG_FLOAT, offX, &offX)
 LOG_ADD(LOG_FLOAT, offY, &offY)
-LOG_ADD(LOG_UINT8, test, &sitAwCAActive)
 LOG_GROUP_STOP(colAw)
 #endif /* SITAW_LOG_ENABLED */
 
@@ -112,13 +116,13 @@ PARAM_ADD(PARAM_FLOAT, TuAngle, &sitAwTuAngle.threshold)
 #endif
 #if defined(SITAW_CA_PARAM_ENABLED) /* Param variables for collision avoidance. */
 PARAM_ADD(PARAM_UINT8, CAActive, &sitAwCAActive)
+PARAM_ADD(PARAM_UINT8, Break, &sitAwBreak)
 PARAM_ADD(PARAM_FLOAT, SearchRadius, &SEARCH_RADIUS)
 PARAM_ADD(PARAM_FLOAT, SeparationRadius, &SEPARATION_RADIUS)
 PARAM_ADD(PARAM_FLOAT, TargetRadius, &TARGET_RADIUS)
 PARAM_ADD(PARAM_FLOAT, Anisotropy, &ANISOTROPY)
 PARAM_ADD(PARAM_FLOAT, RepGain, &REP_GAIN)
-PARAM_ADD(PARAM_FLOAT, tX, &targetX)
-PARAM_ADD(PARAM_FLOAT, tY, &targetY)
+PARAM_ADD(PARAM_FLOAT, MaxSpeed, &MAX_SPEED)
 #endif
 PARAM_GROUP_STOP(sitAw)
 #endif /* SITAW_PARAM_ENABLED */
@@ -196,7 +200,9 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
   #ifdef SITAW_CA_ENABLED
   if (sitAwCAActive > 0) {
     // Routine for avoiding the obstacle or a drone
-    stopped = false;
+
+    float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
+    dt = fmax(dt, 0.005);
 
     // 2D case (x,y)
     struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
@@ -248,15 +254,17 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     struct vec offset = vi_rep;
     float rit_mag = vmag(rit);
     if (TARGET_RADIUS < rit_mag) {
-      offset = vadd(offset, vscl(REP_GAIN*(rit_mag - TARGET_RADIUS),vnormalize(rit)));
+      offset = vadd(offset, vscl(MAX_SPEED,vnormalize(rit)));
     }
-    setpoint->position.x = state->position.x + offset.x;
-    setpoint->position.y = state->position.y + offset.y;
+    setpoint->position.x = state->position.x + offset.x*dt;
+    setpoint->position.y = state->position.y + offset.y*dt;
+    setpoint->velocity.x = offset.x;
+    setpoint->velocity.y = offset.y;
 
     targetX = rt.x;
     targetY = rt.y;
-    stateX = ri.x;
-    stateY = ri.y;
+    stateX = setpoint->position.x;
+    stateY = setpoint->position.y;
     offX = offset.x;
     offY = offset.y;
 /*
@@ -313,25 +321,29 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     setpoint->position.y = setpoint->position.y + offset.y;
   */
 
-} else {
-  // Break and stop the crazyflie mid-air
-  if (stopped == false) {
-    breakpoint.x = state->position.x;
-    breakpoint.y = state->position.y;
-    breakpoint.z = state->position.z;
-    stopped = true;
   }
+  if (sitAwBreak == 0) {
+    stopped = false;
+  } else {
+    // Break and stop the crazyflie mid-air
+    if (stopped == false) {
+      breakpoint.x = state->position.x;
+      breakpoint.y = state->position.y;
+      breakpoint.z = state->position.z;
+      stopped = true;
+    }
 
-    setpoint->position.x = breakpoint.x;
-    setpoint->position.y = breakpoint.y;
-    setpoint->position.z = breakpoint.z;
-    setpoint->velocity.x = 0.0;
-    setpoint->velocity.y = 0.0;
-    setpoint->velocity.z = 0.0;
-    setpoint->acceleration.x = 0.0;
-    setpoint->acceleration.y = 0.0;
-    setpoint->acceleration.z = 0.0;
-}
+      setpoint->position.x = breakpoint.x;
+      setpoint->position.y = breakpoint.y;
+      setpoint->position.z = breakpoint.z;
+      setpoint->velocity.x = 0.0;
+      setpoint->velocity.y = 0.0;
+      setpoint->velocity.z = 0.0;
+      setpoint->acceleration.x = 0.0;
+      setpoint->acceleration.y = 0.0;
+      setpoint->acceleration.z = 0.0;
+  }
+  lastTime = xTaskGetTickCount();
   #endif
   #endif
 }
