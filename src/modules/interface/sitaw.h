@@ -70,9 +70,10 @@ void sitAwUpdateSetpoint(setpoint_t *setpoint, const sensorData_t *sensorData,
 
 /* PARAM configurations. Enable these to be able to tweak detection configurations from the cfclient. */
 #define SITAW_PARAM_ENABLED        /* Uncomment to enable PARAM framework. */
-//#define SITAW_FF_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the Free Fall detection. */
-//#define SITAW_AR_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the At Rest detection. */
-//#define SITAW_TU_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the Tumbled detection. */
-#define SITAW_CA_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the collision avoidance. */
+  //#define SITAW_FF_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the Free Fall detection. */
+  //#define SITAW_AR_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the At Rest detection. */
+  //#define SITAW_TU_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the Tumbled detection. */
+  #define SITAW_CA_PARAM_ENABLED     /* Uncomment to enable PARAM framework for the collision avoidance. */
+#define FLOCKING_PARAM_ENABLED      /* Uncomment to enable PARAM framework for flocking. */
 
 #endif

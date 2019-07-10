@@ -28,6 +28,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include "math3d.h"
+/* FreeRtos includes */
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "log.h"
 #include "param.h"
@@ -50,6 +53,12 @@ static uint8_t sitAwCAActive = 0;
 
 /* Trigger object used to break. */
 static uint8_t sitAwBreak = 0;
+
+/* Trigger object used to flock. */
+static uint8_t flockingActive = 0;
+static uint8_t flockAlign = 0;
+static uint8_t flockCohese = 0;
+static uint8_t flockSeparate = 0;
 
 // Break point of the crazyflie
 struct vec breakpoint;
@@ -117,15 +126,24 @@ PARAM_ADD(PARAM_FLOAT, TuAngle, &sitAwTuAngle.threshold)
 #if defined(SITAW_CA_PARAM_ENABLED) /* Param variables for collision avoidance. */
 PARAM_ADD(PARAM_UINT8, CAActive, &sitAwCAActive)
 PARAM_ADD(PARAM_UINT8, Break, &sitAwBreak)
+#endif
+PARAM_GROUP_STOP(sitAw)
+#endif /* SITAW_PARAM_ENABLED */
+
+#if defined(FLOCKING_PARAM_ENABLED) /* Enable the param group. */
+PARAM_GROUP_START(flocking)
 PARAM_ADD(PARAM_FLOAT, SearchRadius, &SEARCH_RADIUS)
 PARAM_ADD(PARAM_FLOAT, SeparationRadius, &SEPARATION_RADIUS)
 PARAM_ADD(PARAM_FLOAT, TargetRadius, &TARGET_RADIUS)
 PARAM_ADD(PARAM_FLOAT, Anisotropy, &ANISOTROPY)
 PARAM_ADD(PARAM_FLOAT, RepGain, &REP_GAIN)
 PARAM_ADD(PARAM_FLOAT, MaxSpeed, &MAX_SPEED)
-#endif
-PARAM_GROUP_STOP(sitAw)
-#endif /* SITAW_PARAM_ENABLED */
+PARAM_ADD(PARAM_UINT8, Active, &flockingActive)
+PARAM_ADD(PARAM_UINT8, Align, &flockAlign)
+PARAM_ADD(PARAM_UINT8, Cohese, &flockCohese)
+PARAM_ADD(PARAM_UINT8, Separate, &flockSeparate)
+PARAM_GROUP_STOP(flocking)
+#endif /* FLOCKING_PARAM_ENABLED */
 
 #endif /* SITAW_ENABLED */
 
@@ -156,6 +174,9 @@ static void sitAwPostStateUpdateCallOut(const sensorData_t *sensorData,
   sitAwFFTest(state->acc.z, accMAG);
 #endif
 #ifdef SITAW_TU_ENABLED
+/* FreeRtos includes */
+#include "FreeRTOS.h"
+#include "task.h"
   /* Test values for Tumbled detection. */
   sitAwTuTest(state->attitude.roll, state->attitude.pitch);
 #endif
@@ -194,15 +215,13 @@ static void sitAwPreThrustUpdateCallOut(setpoint_t *setpoint)
 #endif
 }
 
-static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
+static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state, float dt)
 {
   #if defined(SITAW_ENABLED)
   #ifdef SITAW_CA_ENABLED
+
   if (sitAwCAActive > 0) {
     // Routine for avoiding the obstacle or a drone
-
-    float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
-    dt = fmax(dt, 0.005);
 
     // 2D case (x,y)
     struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
@@ -267,45 +286,86 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     stateY = setpoint->position.y;
     offX = offset.x;
     offY = offset.y;
-/*
-    // 1. Alignment
-    uint8_t i, count;
-    struct vec v = mkvec(0.0f,0.0f,0.0f);
-    for (i = 0, count = 0; i < 5; i++) {
-      if (neighborDrones[i].id >= 0) {
-        v.x = v.x + cosf(neighborDrones[i].yaw);
-        v.y = v.y + sinf(neighborDrones[i].yaw);
-        count++;
-      }
-    }
-    v.x = v.x/count;
-    v.y = v.y/count;
-    v = vnormalize(v);
-    struct vec v_align = v;
+  }
 
-    // 2. Cohesion
+  #endif
+  #endif
+}
+
+/**
+ * Update setpoint according flocking rules
+ */
+static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
+{
+  // Flocking vectors
+  struct vec v_align = {0.0f,0.0f,0.0f};
+  struct vec v_cohese = {0.0f,0.0f,0.0f};
+  struct vec v_separate = {0.0f,0.0f,0.0f};
+
+  // Additional parameters
+  struct vec v;
+  uint8_t i, count;
+  struct vec pos;
+  pos.x = state->position.x;
+  pos.y = state->position.y;
+  pos.z = 0.0f; // neglect z-direction
+  // struct vec vel;
+  // vel.x = state->velocity.x;
+  // vel.y = state->velocity.y;
+  // vel.z = 0.0f; // neglect z-direction
+
+  /**
+   * 1. Alignment
+   */
+  if (flockAlign == 1)
+  {
     v = mkvec(0.0f,0.0f,0.0f);
     for (i = 0, count = 0; i < 5; i++) {
-      if (neighborDrones[i].id >= 0) {
-        v.x = v.x + neighborDrones[i].x;
-        v.y = v.y + neighborDrones[i].y;
+      if (neighborDrones[i].id > 0) {
+        v.x = v.x + neighborDrones[i].velocity.x;
+        v.y = v.y + neighborDrones[i].velocity.y;
         count++;
       }
     }
     v.x = v.x/count;
     v.y = v.y/count;
     v = vnormalize(v);
-    struct vec v_cohese = v;
+    v_align = v;
+  }
 
-    // 3. Separation
+  /**
+   * 2. Cohesion
+   */
+  if (flockCohese == 1)
+  {
+    v = mkvec(0.0f,0.0f,0.0f);
+    for (i = 0, count = 0; i < 5; i++) {
+      if (neighborDrones[i].id > 0) {
+        v.x = v.x + neighborDrones[i].position.x;
+        v.y = v.y + neighborDrones[i].position.y;
+        count++;
+      }
+    }
+    v.x = v.x/count;
+    v.y = v.y/count;
+    v = vsub(v, pos);
+    v = vnormalize(v);
+    v_cohese = v;
+  }
+
+  /**
+   * 3. Separation
+   */
+  if (flockSeparate == 1)
+  {
     v = mkvec(0.0f,0.0f,0.0f);
     float dist;
-    struct vec v_dist;02131 1538050
+    struct vec v_dist;
     for (i = 0, count = 0; i < 5; i++) {
-      v_dist = vsub(mkvec(state->position.x,state->position.y,0.0f), mkvec(neighborDrones[i].x,neighborDrones[i].y,0.0f));
+      v_dist = vsub(pos, mkvec(neighborDrones[i].position.x,neighborDrones[i].position.y,0.0f));
       dist = vmag(v_dist);
-      if (neighborDrones[i].id >= 0 && d < SEPARATION_RADIUS) {
-        v_dist = vdiv(vnormalize(vdist),dist);
+      if (neighborDrones[i].id > 0 && dist < SEPARATION_RADIUS) {
+        v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
         v.x = v.x + v_dist.x;
         v.y = v.y + v_dist.y;
         count++;
@@ -313,20 +373,33 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
     }
     v.x = v.x/count;
     v.y = v.y/count;
-    struct vec v_separate = v;
-
-    struct vec offset = vadd3(vscl(0.25f,v_align),vscl(0.25f,v_cohese),vscl(0.5f,v_separate));
-
-    setpoint->position.x = setpoint->position.x + offset.x;
-    setpoint->position.y = setpoint->position.y + offset.y;
-  */
-
+    v_separate = v;
   }
-  if (sitAwBreak == 0) {
+
+  // Summary:
+  struct vec offset = vadd3(vscl(0.25f,v_align),vscl(0.25f,v_cohese),vscl(0.5f,v_separate));
+
+  // Update:
+  setpoint->position.x = state->position.x + offset.x*dt;
+  setpoint->position.y = state->position.y + offset.y*dt;
+  setpoint->velocity.x = offset.x;
+  setpoint->velocity.y = offset.y;
+}
+
+/**
+ * Update setpoint if breaking is active
+ */
+static void sitAwBreaking(setpoint_t *setpoint, const state_t *state)
+{
+  if (sitAwBreak == 0)
+  {
     stopped = false;
-  } else {
+  }
+  else
+  {
     // Break and stop the crazyflie mid-air
-    if (stopped == false) {
+    if (stopped == false)
+    {
       breakpoint.x = state->position.x;
       breakpoint.y = state->position.y;
       breakpoint.z = state->position.z;
@@ -343,9 +416,6 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
       setpoint->acceleration.y = 0.0;
       setpoint->acceleration.z = 0.0;
   }
-  lastTime = xTaskGetTickCount();
-  #endif
-  #endif
 }
 
 /**
@@ -357,9 +427,16 @@ static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state)
 void sitAwUpdateSetpoint(setpoint_t *setpoint, const sensorData_t *sensorData,
                                                const state_t *state)
 {
-  sitAwCollisionAvoidance(setpoint, state);
+  float dt = (xTaskGetTickCount() - lastTime) / 1000.0f;
+  dt = fmax(dt, 0.005);
+
+  sitAwFlocking(setpoint, state, dt); // added by PatrickD
+  sitAwCollisionAvoidance(setpoint, state, dt); // added by PatrickD
+  sitAwBreaking(setpoint, state); // added by PatrickD
   sitAwPostStateUpdateCallOut(sensorData, state);
   sitAwPreThrustUpdateCallOut(setpoint);
+
+  lastTime = xTaskGetTickCount();
 }
 
 /**
