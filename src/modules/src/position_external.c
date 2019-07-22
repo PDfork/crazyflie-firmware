@@ -67,9 +67,9 @@ static uint16_t dt;
 static uint16_t thresKill = 800;
 static bool startFlag = false;
 static bool fuckYou = false;
-//------------------------------------------------------------------------------
-struct data_start_avoid_target avoidTarget[5];
+//----------------------------------by PatrickD---------------------------------
 struct data_flocking neighborDrones[5];
+struct data_flocking obstacles[MAX_OBSTACLES];
 struct vec3_s lastPositions[4];
 
 float SEARCH_RADIUS = 5.0f;
@@ -279,43 +279,9 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       positionExternalFresh = true;
       positionExternalFresh2 = true;
     }
-    else if (d->pose[i].id == INTERACTIVE_ID) { // && interactiveCallback != NULL) {
-      float x = position_fix24_to_float(d->pose[i].x);
-      float y = position_fix24_to_float(d->pose[i].y);
-      float z = position_fix24_to_float(d->pose[i].z);
-      //struct vec pos = mkvec(x, y, z);
-
-      //float q[4];
-      //quatdecompress(d->pose[i].quat, q);
-      //struct quat quat = qloadf(q);
-
-      avoidTarget[0].x = x;
-      avoidTarget[0].y = y;
-      avoidTarget[0].z = z;
-      avoidTarget[0].max_displacement = 1.5f;
-      avoidTarget[0].max_speed = 0.3f;
-
-      //positionExternalTarget = true;
-      // (*interactiveCallback)(&pos, &quat);
+    else if (d->pose[i].id >= MIN_OBSTACLE_ID) {
+      // update obstacle position
     }
-    /*else if (d->pose[i].id == DRONE_ID) {
-      float x = position_fix24_to_float(d->pose[i].x);
-      float y = position_fix24_to_float(d->pose[i].y);
-      float z = position_fix24_to_float(d->pose[i].z);
-      //struct vec pos = mkvec(x, y, z);
-
-      //float q[4];
-      //quatdecompress(d->pose[i].quat, q);
-      //struct quat quat = qloadf(q);
-
-      avoidDrone.x = x;
-      avoidDrone.y = y;
-      avoidDrone.z = z;
-      avoidDrone.max_displacement = 1.5f;
-      avoidDrone.max_speed = 0.5f;
-
-      positionExternalDrone = true;
-    }*/
     else { // Prototype of checking drone distances
       int8_t temp_id = d->pose[i].id;
 
@@ -354,7 +320,7 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
           }
         }
       } else { // dist > SEARCH_RADIUS
-        if (indx != -1) {
+        if (indx != -1) {// resetting ID for removing the drone from neighbors
           neighborDrones[indx].id = -1;
         }
       }

@@ -37,7 +37,8 @@
 #include "trigger.h"
 #include "sitaw.h"
 #include "commander.h"
-#include "position_external.h"
+#include "position_external.h" // for neighborDrones information
+#include "crtp_commander_high_level.h" // for obstacles information
 
 /* Trigger object used to detect Free Fall situation. */
 static trigger_t sitAwFFAccWZ;

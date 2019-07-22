@@ -49,10 +49,17 @@ Header file for high-level commander that computes smooth setpoints based on hig
 // allocate memory to store trajectories
 // 4k allows us to store 31 poly4d pieces
 // other (compressed) formats might be added in the future
-#define TRAJECTORY_MEMORY_SIZE 4096
+#define TRAJECTORY_MEMORY_SIZE 2048 // 4096
 extern uint8_t trajectories_memory[TRAJECTORY_MEMORY_SIZE];
 
 #define NUM_TRAJECTORY_DEFINITIONS 10
+
+// allocate memory for obstacles (added by PatrickD)
+#define OBSTACLE_MEMORY_SIZE 2048
+extern uint8_t obstacles_memory[OBSTACLE_MEMORY_SIZE];
+
+#define MAX_OBSTACLES 10
+#define MIN_OBSTACLE_ID 200
 
 /* Public functions */
 void crtpCommanderHighLevelInit(void);

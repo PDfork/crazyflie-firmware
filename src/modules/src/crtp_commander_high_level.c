@@ -87,9 +87,30 @@ struct trajectoryDescription
   } trajectoryIdentifier;
 } __attribute__((packed));
 
+enum ObstacleType_e {
+  OBSTACLE_LINE = 0,
+  OBSTACLE_CIRCLE = 1,
+  // and more (Square, Ellipse, ...)
+};
+
+struct obstacleDescription
+{
+  uint8_t obstacleActive; // 0 = not present, 1 = present
+  uint8_t obstacleType; // LINE, CIRCLE, ...
+  union
+  {
+    struct {
+      uint32_t offset;  // offset in uploaded memory
+      uint8_t n_pieces;
+    } __attribute__((packed)) mem;
+  } obstacleIdentifier;
+} __attribute__((packed));
+
 // Global variables
 uint8_t trajectories_memory[TRAJECTORY_MEMORY_SIZE];
 static struct trajectoryDescription trajectory_descriptions[NUM_TRAJECTORY_DEFINITIONS];
+uint8_t obstacles_memory[OBSTACLE_MEMORY_SIZE];
+static struct obstacleDescription obstacle_descriptions[MAX_OBSTACLES];
 
 static bool isInit = false;
 static struct planner planner;
@@ -112,6 +133,8 @@ enum TrajectoryCommand_e {
   COMMAND_GO_TO                   = 4,
   COMMAND_START_TRAJECTORY        = 5,
   COMMAND_DEFINE_TRAJECTORY       = 6,
+  COMMAND_UPLOAD_OBSTACLE         = 7,
+  COMMAND_REMOVE_OBSTACLE         = 8,
 };
 
 struct data_set_group_mask {
@@ -163,6 +186,12 @@ struct data_define_trajectory {
   struct trajectoryDescription description;
 } __attribute__((packed));
 
+// starts executing a specified trajectory
+struct data_upload_obstacle {
+  uint8_t obstacleId;
+  struct obstacleDescription description;
+} __attribute__((packed));
+
 // Private functions
 static void crtpCommanderHighLevelTask(void * prm);
 
@@ -173,6 +202,7 @@ static int stop(const struct data_stop* data);
 static int go_to(const struct data_go_to* data);
 static int start_trajectory(const struct data_start_trajectory* data);
 static int define_trajectory(const struct data_define_trajectory* data);
+static int upload_obstacle(const struct data_upload_obstacle* data);
 
 // Helper functions
 static struct vec state2vec(struct vec3_s v)
