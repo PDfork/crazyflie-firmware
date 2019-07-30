@@ -87,16 +87,23 @@ struct trajectoryDescription
   } trajectoryIdentifier;
 } __attribute__((packed));
 
+enum ObstacleLocation_e {
+  OBSTACLE_STATIC = 0,
+  OBSTACLE_DYNAMIC = 1,
+  // and more (Square, Ellipse, ...)
+};
+
 enum ObstacleType_e {
-  OBSTACLE_LINE = 0,
-  OBSTACLE_CIRCLE = 1,
+  OBSTACLE_NONE = 0,
+  OBSTACLE_LINE = 1,
+  OBSTACLE_CIRCLE = 2,
   // and more (Square, Ellipse, ...)
 };
 
 struct obstacleDescription
 {
-  uint8_t obstacleActive; // 0 = not present, 1 = present
-  uint8_t obstacleType; // LINE, CIRCLE, ...
+  uint8_t obstacleLocation; // STATIC or DYNAMIC
+  uint8_t obstacleType; // NONE, LINE, CIRCLE, ...
   union
   {
     struct {
@@ -133,8 +140,7 @@ enum TrajectoryCommand_e {
   COMMAND_GO_TO                   = 4,
   COMMAND_START_TRAJECTORY        = 5,
   COMMAND_DEFINE_TRAJECTORY       = 6,
-  COMMAND_UPLOAD_OBSTACLE         = 7,
-  COMMAND_REMOVE_OBSTACLE         = 8,
+  COMMAND_UPDATE_OBSTACLE         = 7,
 };
 
 struct data_set_group_mask {
@@ -186,8 +192,8 @@ struct data_define_trajectory {
   struct trajectoryDescription description;
 } __attribute__((packed));
 
-// starts executing a specified trajectory
-struct data_upload_obstacle {
+// updates obstacle definitions
+struct data_update_obstacle {
   uint8_t obstacleId;
   struct obstacleDescription description;
 } __attribute__((packed));
@@ -202,7 +208,7 @@ static int stop(const struct data_stop* data);
 static int go_to(const struct data_go_to* data);
 static int start_trajectory(const struct data_start_trajectory* data);
 static int define_trajectory(const struct data_define_trajectory* data);
-static int upload_obstacle(const struct data_upload_obstacle* data);
+static int update_obstacle(const struct data_update_obstacle* data);
 
 // Helper functions
 static struct vec state2vec(struct vec3_s v)
@@ -316,6 +322,9 @@ void crtpCommanderHighLevelTask(void * prm)
       case COMMAND_DEFINE_TRAJECTORY:
         ret = define_trajectory((const struct data_define_trajectory*)&p.data[1]);
         break;
+      case COMMAND_UPDATE_OBSTACLE:
+        ret = update_obstacle((const struct data_update_obstacle*)&p.data[1]);
+        break;
       default:
         ret = ENOEXEC;
         break;
@@ -425,5 +434,15 @@ int define_trajectory(const struct data_define_trajectory* data)
     return ENOEXEC;
   }
   trajectory_descriptions[data->trajectoryId] = data->description;
+  return 0;
+}
+
+int update_obstacle(const struct data_update_obstacle* data)
+{
+  uint8_t temp_id = data->obstacleId - MIN_OBSTACLE_ID;
+  if (temp_id >= MAX_OBSTACLES) {
+    return ENOEXEC;
+  }
+  obstacle_descriptions[temp_id] = data->description;
   return 0;
 }

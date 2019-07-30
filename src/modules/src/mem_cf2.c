@@ -1,6 +1,6 @@
 /**
- *    ||          ____  _ __                           
- * +------+      / __ )(_) /_______________ _____  ___ 
+ *    ||          ____  _ __
+ * +------+      / __ )(_) /_______________ _____  ___
  * | 0xBC |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
  * +------+    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
  *  ||  ||    /_____/_/\__/\___/_/   \__,_/ /___/\___/
@@ -68,6 +68,7 @@
 #define LOCO_ID         0x02
 #define TRAJ_ID         0x03
 #define OW_FIRST_ID     0x04
+// #define OBST_ID         0x05 // by PatrickD
 
 #define STATUS_OK 0
 
@@ -112,7 +113,7 @@ void memInit(void)
     isInit = true;
   else
     isInit = false;
-  
+
   //Start the mem task
   xTaskCreate(memTask, MEM_TASK_NAME,
               MEM_TASK_STACKSIZE, NULL, MEM_TASK_PRI, NULL);
@@ -126,7 +127,7 @@ bool memTest(void)
 void memTask(void * param)
 {
 	crtpInitTaskQueue(CRTP_PORT_MEM);
-	
+
 	while(1)
 	{
 		crtpReceivePacketBlock(CRTP_PORT_MEM, &p);

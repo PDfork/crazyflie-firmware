@@ -200,7 +200,7 @@ struct data_start_avoid_target {
 };
 
 struct data_flocking {
-  int8_t id;
+  uint8_t id;
   struct vec position;
   struct vec velocity;
   float lastDistance;

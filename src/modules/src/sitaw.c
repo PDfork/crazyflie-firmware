@@ -50,7 +50,7 @@ static trigger_t sitAwARAccZ;
 static trigger_t sitAwTuAngle;
 
 /* Trigger object used to detect collision avoidance. */
-static uint8_t sitAwCAActive = 0;
+// static uint8_t sitAwCAActive = 0;
 
 /* Trigger object used to break. */
 static uint8_t sitAwBreak = 0;
@@ -125,7 +125,7 @@ PARAM_ADD(PARAM_UINT32, TuTriggerCount, &sitAwTuAngle.triggerCount)
 PARAM_ADD(PARAM_FLOAT, TuAngle, &sitAwTuAngle.threshold)
 #endif
 #if defined(SITAW_CA_PARAM_ENABLED) /* Param variables for collision avoidance. */
-PARAM_ADD(PARAM_UINT8, CAActive, &sitAwCAActive)
+// PARAM_ADD(PARAM_UINT8, CAActive, &sitAwCAActive)
 PARAM_ADD(PARAM_UINT8, Break, &sitAwBreak)
 #endif
 PARAM_GROUP_STOP(sitAw)
@@ -216,175 +216,209 @@ static void sitAwPreThrustUpdateCallOut(setpoint_t *setpoint)
 #endif
 }
 
-static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state, float dt)
-{
-  #if defined(SITAW_ENABLED)
-  #ifdef SITAW_CA_ENABLED
-
-  if (sitAwCAActive > 0) {
-    // Routine for avoiding the obstacle or a drone
-
-    // 2D case (x,y)
-    struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
-    struct vec ri = {state->position.x, state->position.y, 0.0f};
-
-    struct vec rit = vsub(rt,ri);
-
-    float alpha; // angle between rit, vj
-    float theta; // angle between rij, rit
-    float rho; // angle between uij, -rit
-    struct vec vj;
-    struct vec vi_rep = {0.0f,0.0f,0.0f};
-    struct vec rij;
-    uint8_t j;
-    for (j = 0; j < 5; j++) {
-
-      if (neighborDrones[j].id > 0) {
-        vj = neighborDrones[j].velocity;
-        rij = vsub(neighborDrones[j].position, ri);
-
-        float umag = 0.0f; // magnitude of repulsion
-        float rmag = vmag(rij); // magnitude of rij
-
-        if (rmag < SEPARATION_RADIUS) {
-          umag = REP_GAIN * (SEPARATION_RADIUS - rmag);
-
-          alpha = vangle(rit, vj);
-          theta = vangle(rij, rit);
-
-          if (alpha <= M_PI_F/3.0f) {
-            if (theta <= M_PI_F/2) {
-              rho = ANISOTROPY * theta;
-            } else {
-              rho = M_PI_F + ANISOTROPY * (theta - M_PI_F);
-            }
-          } else {
-            rho = (1.0f - ANISOTROPY/2.0f) * (theta - M_PI_F) + M_PI_F;
-          }
-
-          float ux = cosf(rho) * -rit.x + sinf(rho) * -rit.y;
-          float uy = sinf(rho) * -rit.x + cosf(rho) * -rit.y;
-          struct vec uij = vnormalize(mkvec(ux, uy, 0.0f)); // new direction
-
-          vi_rep = vadd(vi_rep, vscl(umag, uij));
-        }
-      }
-    }
-
-    struct vec offset = vi_rep;
-    float rit_mag = vmag(rit);
-    if (TARGET_RADIUS < rit_mag) {
-      offset = vadd(offset, vscl(MAX_SPEED,vnormalize(rit)));
-    }
-    setpoint->position.x = state->position.x + offset.x*dt;
-    setpoint->position.y = state->position.y + offset.y*dt;
-    setpoint->velocity.x = offset.x;
-    setpoint->velocity.y = offset.y;
-
-    targetX = rt.x;
-    targetY = rt.y;
-    stateX = setpoint->position.x;
-    stateY = setpoint->position.y;
-    offX = offset.x;
-    offY = offset.y;
-  }
-
-  #endif
-  #endif
-}
+// static void sitAwCollisionAvoidance(setpoint_t *setpoint, const state_t *state, float dt)
+// {
+//   #if defined(SITAW_ENABLED)
+//   #ifdef SITAW_CA_ENABLED
+//
+//   if (sitAwCAActive > 0) {
+//     // Routine for avoiding the obstacle or a drone
+//
+//     // 2D case (x,y)
+//     struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
+//     struct vec ri = {state->position.x, state->position.y, 0.0f};
+//
+//     struct vec rit = vsub(rt,ri);
+//
+//     float alpha; // angle between rit, vj
+//     float theta; // angle between rij, rit
+//     float rho; // angle between uij, -rit
+//     struct vec vj;
+//     struct vec vi_rep = {0.0f,0.0f,0.0f};
+//     struct vec rij;
+//     uint8_t j;
+//     for (j = 0; j < 5; j++) {
+//
+//       if (neighborDrones[j].id > 0) {
+//         vj = neighborDrones[j].velocity;
+//         rij = vsub(neighborDrones[j].position, ri);
+//
+//         float umag = 0.0f; // magnitude of repulsion
+//         float rmag = vmag(rij); // magnitude of rij
+//
+//         if (rmag < SEPARATION_RADIUS) {
+//           umag = REP_GAIN * (SEPARATION_RADIUS - rmag);
+//
+//           alpha = vangle(rit, vj);
+//           theta = vangle(rij, rit);
+//
+//           if (alpha <= M_PI_F/3.0f) {
+//             if (theta <= M_PI_F/2) {
+//               rho = ANISOTROPY * theta;
+//             } else {
+//               rho = M_PI_F + ANISOTROPY * (theta - M_PI_F);
+//             }
+//           } else {
+//             rho = (1.0f - ANISOTROPY/2.0f) * (theta - M_PI_F) + M_PI_F;
+//           }
+//
+//           float ux = cosf(rho) * -rit.x + sinf(rho) * -rit.y;
+//           float uy = sinf(rho) * -rit.x + cosf(rho) * -rit.y;
+//           struct vec uij = vnormalize(mkvec(ux, uy, 0.0f)); // new direction
+//
+//           vi_rep = vadd(vi_rep, vscl(umag, uij));
+//         }
+//       }
+//     }
+//
+//     struct vec offset = vi_rep;
+//     float rit_mag = vmag(rit);
+//     if (TARGET_RADIUS < rit_mag) {
+//       offset = vadd(offset, vscl(MAX_SPEED,vnormalize(rit)));
+//     }
+//     setpoint->position.x = state->position.x + offset.x*dt;
+//     setpoint->position.y = state->position.y + offset.y*dt;
+//     setpoint->velocity.x = offset.x;
+//     setpoint->velocity.y = offset.y;
+//
+//     targetX = rt.x;
+//     targetY = rt.y;
+//     stateX = setpoint->position.x;
+//     stateY = setpoint->position.y;
+//     offX = offset.x;
+//     offY = offset.y;
+//   }
+//
+//   #endif
+//   #endif
+// }
 
 /**
  * Update setpoint according flocking rules
  */
 static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
 {
-  // Flocking vectors
-  struct vec v_align = {0.0f,0.0f,0.0f};
-  struct vec v_cohese = {0.0f,0.0f,0.0f};
-  struct vec v_separate = {0.0f,0.0f,0.0f};
-
-  // Additional parameters
-  struct vec v;
-  uint8_t i, count;
-  struct vec pos;
-  pos.x = state->position.x;
-  pos.y = state->position.y;
-  pos.z = 0.0f; // neglect z-direction
-  // struct vec vel;
-  // vel.x = state->velocity.x;
-  // vel.y = state->velocity.y;
-  // vel.z = 0.0f; // neglect z-direction
-
-  /**
-   * 1. Alignment
-   */
-  if (flockAlign == 1)
+  if (flockingActive == 1)
   {
-    v = mkvec(0.0f,0.0f,0.0f);
-    for (i = 0, count = 0; i < 5; i++) {
-      if (neighborDrones[i].id > 0) {
-        v.x = v.x + neighborDrones[i].velocity.x;
-        v.y = v.y + neighborDrones[i].velocity.y;
-        count++;
+    // Flocking vectors
+    struct vec v_align = vrepeat(0.0f);
+    struct vec v_cohese = vrepeat(0.0f);
+    struct vec v_separate = vrepeat(0.0f);
+
+    // 2D case (x,y)
+    struct vec rt = {setpoint->position.x, setpoint->position.y, 0.0f};
+    struct vec ri = {state->position.x, state->position.y, 0.0f};
+    struct vec rit = vsub(rt,ri);
+
+    // Additional parameters
+    struct vec v;
+    uint8_t i, count;
+    struct vec pos;
+    pos.x = state->position.x;
+    pos.y = state->position.y;
+    pos.z = 0.0f; // neglect z-direction
+    // struct vec vel;
+    // vel.x = state->velocity.x;
+    // vel.y = state->velocity.y;
+    // vel.z = 0.0f; // neglect z-direction
+
+    /**
+     * 1. Alignment
+     */
+    if (flockAlign == 1)
+    {
+      v = vrepeat(0.0f);
+      for (i = 0, count = 0; i < 5; i++) {
+        if (neighborDrones[i].id > 0) {
+          v.x = v.x + neighborDrones[i].velocity.x;
+          v.y = v.y + neighborDrones[i].velocity.y;
+          count++;
+        }
       }
+      v.x = v.x/count;
+      v.y = v.y/count;
+      v = vnormalize(v);
+      v_align = v;
     }
-    v.x = v.x/count;
-    v.y = v.y/count;
-    v = vnormalize(v);
-    v_align = v;
-  }
 
-  /**
-   * 2. Cohesion
-   */
-  if (flockCohese == 1)
-  {
-    v = mkvec(0.0f,0.0f,0.0f);
-    for (i = 0, count = 0; i < 5; i++) {
-      if (neighborDrones[i].id > 0) {
-        v.x = v.x + neighborDrones[i].position.x;
-        v.y = v.y + neighborDrones[i].position.y;
-        count++;
+    /**
+     * 2. Cohesion
+     */
+    if (flockCohese == 1)
+    {
+      v = vrepeat(0.0f);
+      for (i = 0, count = 0; i < 5; i++) {
+        if (neighborDrones[i].id > 0) {
+          v.x = v.x + neighborDrones[i].position.x;
+          v.y = v.y + neighborDrones[i].position.y;
+          count++;
+        }
       }
+      v.x = v.x/count;
+      v.y = v.y/count;
+      v = vsub(v, pos);
+      v = vnormalize(v);
+      v_cohese = v;
     }
-    v.x = v.x/count;
-    v.y = v.y/count;
-    v = vsub(v, pos);
-    v = vnormalize(v);
-    v_cohese = v;
-  }
 
-  /**
-   * 3. Separation
-   */
-  if (flockSeparate == 1)
-  {
-    v = mkvec(0.0f,0.0f,0.0f);
-    float dist;
-    struct vec v_dist;
-    for (i = 0, count = 0; i < 5; i++) {
-      v_dist = vsub(pos, mkvec(neighborDrones[i].position.x,neighborDrones[i].position.y,0.0f));
-      dist = vmag(v_dist);
-      if (neighborDrones[i].id > 0 && dist < SEPARATION_RADIUS) {
-        v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
-        v.x = v.x + v_dist.x;
-        v.y = v.y + v_dist.y;
-        count++;
+    /**
+     * 3. Separation
+     */
+    if (flockSeparate == 1)
+    {
+      v = vrepeat(0.0f);
+      float dist;
+      struct vec v_dist;
+      for (i = 0, count = 0; i < 5; i++) {
+        v_dist = vsub(pos, mkvec(neighborDrones[i].position.x,neighborDrones[i].position.y,0.0f));
+        dist = vmag(v_dist);
+        if (neighborDrones[i].id > 0 && dist < SEPARATION_RADIUS) {
+          v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
+          v.x = v.x + v_dist.x;
+          v.y = v.y + v_dist.y;
+          count++;
+        }
       }
+      // v.x = v.x/count;
+      // v.y = v.y/count;
+      v_separate = v;
     }
-    v.x = v.x/count;
-    v.y = v.y/count;
-    v_separate = v;
+
+    // Summary:
+    struct vec offset = vrepeat(0.0f);
+    offset = vadd(offset, v_align);
+    offset = vadd(offset, v_cohese);
+    offset = vadd(offset, v_separate);
+
+    float rit_mag = vmag(rit);
+    if (TARGET_RADIUS < rit_mag) {
+      offset = vadd(offset, vscl(MAX_SPEED,vnormalize(rit)));
+      sitAwBreak = 0;
+    } else if (0.3f*TARGET_RADIUS < rit_mag) {
+      sitAwBreak = 1;
+    }
+
+    if (visnan(offset)) {
+      offset = vrepeat(0.0f);
+      sitAwBreak = 1;
+    }
+
+    // Logging:
+    targetX = rt.x;
+    targetY = rt.y;
+    stateX = ri.x;
+    stateY = ri.y;
+    offX = offset.x;
+    offY = offset.y;
+
+    // Update:
+    setpoint->position.x = state->position.x + offset.x*dt;
+    setpoint->position.y = state->position.y + offset.y*dt;
+    setpoint->velocity.x = offset.x;
+    setpoint->velocity.y = offset.y;
+    setpoint->acceleration.x = 0.0;
+    setpoint->acceleration.y = 0.0;
   }
-
-  // Summary:
-  struct vec offset = vadd3(vscl(0.25f,v_align),vscl(0.25f,v_cohese),vscl(0.5f,v_separate));
-
-  // Update:
-  setpoint->position.x = state->position.x + offset.x*dt;
-  setpoint->position.y = state->position.y + offset.y*dt;
-  setpoint->velocity.x = offset.x;
-  setpoint->velocity.y = offset.y;
 }
 
 /**
@@ -432,7 +466,7 @@ void sitAwUpdateSetpoint(setpoint_t *setpoint, const sensorData_t *sensorData,
   dt = fmax(dt, 0.005);
 
   sitAwFlocking(setpoint, state, dt); // added by PatrickD
-  sitAwCollisionAvoidance(setpoint, state, dt); // added by PatrickD
+  // sitAwCollisionAvoidance(setpoint, state, dt); // added by PatrickD
   sitAwBreaking(setpoint, state); // added by PatrickD
   sitAwPostStateUpdateCallOut(sensorData, state);
   sitAwPreThrustUpdateCallOut(setpoint);

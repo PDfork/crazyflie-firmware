@@ -66,7 +66,7 @@ extern float MAX_SPEED;
 // position of the "interactive object" i.e. in "avoid human" demo
 typedef void (*positionInteractiveCallback)(struct vec const *, struct quat const *);
 void setPositionInteractiveCallback(positionInteractiveCallback cb);
-int8_t checkID(int8_t id);
+int8_t checkID(uint8_t id);
 int8_t checkDistance(float dist);
 
 #endif /* POSITION_EXTERNAL_H_ */

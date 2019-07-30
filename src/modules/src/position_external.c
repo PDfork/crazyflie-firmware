@@ -101,11 +101,11 @@ void positionExternalInit(void)
   crtpRegisterPortCB(CRTP_PORT_POSEXT, positionExternalCrtpCB);
 
   // init drone droneIDs
-  neighborDrones[0].id = -1;
-  neighborDrones[1].id = -1;
-  neighborDrones[2].id = -1;
-  neighborDrones[3].id = -1;
-  neighborDrones[4].id = -1;
+  neighborDrones[0].id = 0;
+  neighborDrones[1].id = 0;
+  neighborDrones[2].id = 0;
+  neighborDrones[3].id = 0;
+  neighborDrones[4].id = 0;
 
   isInit = true;
 
@@ -170,11 +170,11 @@ void setPositionInteractiveCallback(positionInteractiveCallback cb)
   interactiveCallback = cb;
 }
 
-int8_t checkID(int8_t id)
+int8_t checkID(uint8_t id)
 {
   uint8_t i;
-  int8_t droneIDs[6] = {neighborDrones[0].id, neighborDrones[1].id, neighborDrones[2].id, neighborDrones[3].id, neighborDrones[4].id, id}; // 5 drone IDs + 1 temp id for comparison
-  for (i = 0; droneIDs[i] != id && droneIDs[i] >= 0; i++);
+  uint8_t droneIDs[6] = {neighborDrones[0].id, neighborDrones[1].id, neighborDrones[2].id, neighborDrones[3].id, neighborDrones[4].id, id}; // 5 drone IDs + 1 temp id for comparison
+  for (i = 0; droneIDs[i] != id && droneIDs[i] > 0; i++);
   if (i == 5) {
     return -1;
   }
@@ -247,7 +247,8 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
 #else
   struct data_vicon* d = ((struct data_vicon*)pk->data);
   for (int i=0; i < 2; ++i) {
-    if (d->pose[i].id == my_id) {
+    uint8_t temp_id = d->pose[i].id;
+    if (temp_id == my_id) {
       float x = position_fix24_to_float(d->pose[i].x);
       float y = position_fix24_to_float(d->pose[i].y);
       float z = position_fix24_to_float(d->pose[i].z);
@@ -279,11 +280,17 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       positionExternalFresh = true;
       positionExternalFresh2 = true;
     }
-    else if (d->pose[i].id >= MIN_OBSTACLE_ID) {
+    else if (temp_id >= MIN_OBSTACLE_ID) {
       // update obstacle position
+      uint8_t indx = temp_id - MIN_OBSTACLE_ID;
+      float x = position_fix24_to_float(d->pose[i].x);
+      float y = position_fix24_to_float(d->pose[i].y);
+
+      obstacles[indx].id = temp_id;
+      obstacles[indx].position.x = x;
+      obstacles[indx].position.y = y;
     }
-    else { // Prototype of checking drone distances
-      int8_t temp_id = d->pose[i].id;
+    else if ((temp_id > 0) && (temp_id < MIN_OBSTACLE_ID)) { // Prototype of checking drone distances
 
       float x = position_fix24_to_float(d->pose[i].x);
       float y = position_fix24_to_float(d->pose[i].y);
@@ -299,6 +306,7 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
       int8_t indx = checkID(temp_id); // check if ID is already in the list
       if (dist <= SEARCH_RADIUS) {
         if (indx != -1) {
+          neighborDrones[indx].id = temp_id;
           neighborDrones[indx].position.x = x;
           neighborDrones[indx].position.y = y;
           neighborDrones[indx].lastDistance = dist;
@@ -321,7 +329,7 @@ static void positionExternalCrtpCB(CRTPPacket* pk)
         }
       } else { // dist > SEARCH_RADIUS
         if (indx != -1) {// resetting ID for removing the drone from neighbors
-          neighborDrones[indx].id = -1;
+          neighborDrones[indx].id = 0;
         }
       }
     }
@@ -337,12 +345,15 @@ LOG_ADD(LOG_UINT16, dt, &dt) // zueit seit letztem packet startFlag
 LOG_ADD(LOG_UINT8, startFlag, &startFlag) // by FlW ----------------------------
 LOG_ADD(LOG_UINT8, fuckYou, &fuckYou) // fuck you facebook filter by FLW -------
 // neighborDrones Log:
-LOG_ADD(LOG_UINT8, nID0, &neighborDrones[0].id)
+LOG_ADD(LOG_INT8, nID0, &neighborDrones[0].id)
 LOG_ADD(LOG_FLOAT, nX0, &neighborDrones[0].position.x)
 LOG_ADD(LOG_FLOAT, nY0, &neighborDrones[0].position.y)
 LOG_ADD(LOG_FLOAT, nVX0, &neighborDrones[0].velocity.x)
 LOG_ADD(LOG_FLOAT, nVY0, &neighborDrones[0].velocity.y)
 LOG_ADD(LOG_FLOAT, nDist0, &neighborDrones[0].lastDistance)
+LOG_ADD(LOG_INT8, doID0, &obstacles[0].id)
+LOG_ADD(LOG_FLOAT, doX0, &obstacles[0].position.x)
+LOG_ADD(LOG_FLOAT, doY0, &obstacles[0].position.y)
 // neighborDrones Log end
 LOG_ADD(LOG_FLOAT, roll, &posExtLastRPY.x)
 LOG_ADD(LOG_FLOAT, pitch, &posExtLastRPY.y)
