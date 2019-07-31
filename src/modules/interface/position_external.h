@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include "math3d.h"
 #include "packetdef.h"
+#include "crtp_commander_high_level.h" // by PatrickD (for obstacles constants)
 
 void positionExternalInit(void);
 bool positionExternalTest(void);
@@ -54,6 +55,7 @@ extern uint8_t numExternalTarget;
 extern uint8_t numExternalDrone;
 extern struct data_start_avoid_target avoidTarget[5];
 extern struct data_flocking neighborDrones[5];
+extern struct data_flocking obstacles[MAX_OBSTACLES];
 
 // Parameter for the separation
 extern float SEARCH_RADIUS;

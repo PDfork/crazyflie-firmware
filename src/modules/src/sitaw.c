@@ -61,6 +61,12 @@ static uint8_t flockAlign = 0;
 static uint8_t flockCohese = 0;
 static uint8_t flockSeparate = 0;
 
+// Boundary values
+float X_MIN = -2.0f;
+float X_MAX = 2.0f;
+float Y_MIN = -2.0f;
+float Y_MAX = 2.0f;
+
 // Break point of the crazyflie
 struct vec breakpoint;
 bool stopped = false;
@@ -139,6 +145,10 @@ PARAM_ADD(PARAM_FLOAT, TargetRadius, &TARGET_RADIUS)
 PARAM_ADD(PARAM_FLOAT, Anisotropy, &ANISOTROPY)
 PARAM_ADD(PARAM_FLOAT, RepGain, &REP_GAIN)
 PARAM_ADD(PARAM_FLOAT, MaxSpeed, &MAX_SPEED)
+PARAM_ADD(PARAM_FLOAT, Xmin, &X_MIN)
+PARAM_ADD(PARAM_FLOAT, Xmax, &X_MAX)
+PARAM_ADD(PARAM_FLOAT, Ymin, &Y_MIN)
+PARAM_ADD(PARAM_FLOAT, Ymax, &Y_MAX)
 PARAM_ADD(PARAM_UINT8, Active, &flockingActive)
 PARAM_ADD(PARAM_UINT8, Align, &flockAlign)
 PARAM_ADD(PARAM_UINT8, Cohese, &flockCohese)
@@ -369,7 +379,7 @@ static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
       v = vrepeat(0.0f);
       float dist;
       struct vec v_dist;
-      for (i = 0, count = 0; i < 5; i++) {
+      for (i = 0, count = 0; i < 5; i++) { // neighborDrones
         v_dist = vsub(pos, mkvec(neighborDrones[i].position.x,neighborDrones[i].position.y,0.0f));
         dist = vmag(v_dist);
         if (neighborDrones[i].id > 0 && dist < SEPARATION_RADIUS) {
@@ -379,6 +389,49 @@ static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
           count++;
         }
       }
+      for (i = 0; i < MAX_OBSTACLES; i++) { // obstacles
+        v_dist = vsub(pos, mkvec(obstacles[i].position.x,obstacles[i].position.y,0.0f));
+        dist = vmag(v_dist);
+        if (obstacles[i].id >= MIN_OBSTACLE_ID && dist < SEPARATION_RADIUS) {
+          v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
+          v.x = v.x + v_dist.x;
+          v.y = v.y + v_dist.y;
+          count++;
+        }
+      }
+      // X_MIN:
+      dist = pos.x - X_MIN;
+      if (dist < SEPARATION_RADIUS) {
+        v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
+        v.x = v.x + v_dist.x;
+        v.y = v.y + v_dist.y;
+        count++;
+      }
+      // X_MAX:
+      dist = X_MAX - pos.x;
+      if (dist < SEPARATION_RADIUS) {
+        v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
+        v.x = v.x + v_dist.x;
+        v.y = v.y + v_dist.y;
+        count++;
+      }
+      // Y_MIN:
+      dist = pos.y - Y_MIN;
+      if (dist < SEPARATION_RADIUS) {
+        v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
+        v.x = v.x + v_dist.x;
+        v.y = v.y + v_dist.y;
+        count++;
+      }
+      // Y_MAX:
+      dist = Y_MAX - pos.y;
+      if (dist < SEPARATION_RADIUS) {
+        v_dist = vscl(REP_GAIN * (SEPARATION_RADIUS - dist), vnormalize(v_dist));
+        v.x = v.x + v_dist.x;
+        v.y = v.y + v_dist.y;
+        count++;
+      }
+
       // v.x = v.x/count;
       // v.y = v.y/count;
       v_separate = v;
@@ -393,23 +446,16 @@ static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
     float rit_mag = vmag(rit);
     if (TARGET_RADIUS < rit_mag) {
       offset = vadd(offset, vscl(MAX_SPEED,vnormalize(rit)));
-      sitAwBreak = 0;
-    } else if (0.3f*TARGET_RADIUS < rit_mag) {
-      sitAwBreak = 1;
-    }
 
-    if (visnan(offset)) {
-      offset = vrepeat(0.0f);
-      sitAwBreak = 1;
+      if (visnan(offset)) {
+        offset = vrepeat(0.0f);
+        sitAwBreak = 1;
+      } else {
+        sitAwBreak = 0;
+      }
+    } else {
+      offset = vadd(offset, vscl(MAX_SPEED*(rit_mag/TARGET_RADIUS),vnormalize(rit)));
     }
-
-    // Logging:
-    targetX = rt.x;
-    targetY = rt.y;
-    stateX = ri.x;
-    stateY = ri.y;
-    offX = offset.x;
-    offY = offset.y;
 
     // Update:
     setpoint->position.x = state->position.x + offset.x*dt;
@@ -418,6 +464,14 @@ static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
     setpoint->velocity.y = offset.y;
     setpoint->acceleration.x = 0.0;
     setpoint->acceleration.y = 0.0;
+
+    // Logging:
+    targetX = rt.x;
+    targetY = rt.y;
+    stateX = ri.x;
+    stateY = ri.y;
+    offX = offset.x;
+    offY = offset.y;
   }
 }
 

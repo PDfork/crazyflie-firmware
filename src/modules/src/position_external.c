@@ -106,6 +106,12 @@ void positionExternalInit(void)
   neighborDrones[2].id = 0;
   neighborDrones[3].id = 0;
   neighborDrones[4].id = 0;
+  // init drone droneIDs
+  obstacles[0].id = 0;
+  obstacles[1].id = 0;
+  obstacles[2].id = 0;
+  obstacles[3].id = 0;
+  obstacles[4].id = 0;
 
   isInit = true;
 
