@@ -389,7 +389,7 @@ static void sitAwFlocking(setpoint_t *setpoint, const state_t *state, float dt)
           count++;
         }
       }
-      for (i = 0; i < MAX_OBSTACLES; i++) { // obstacles
+      for (i = 0; i < MAX_DYN_OBSTACLES; i++) { // dynamic obstacles
         v_dist = vsub(pos, mkvec(obstacles[i].position.x,obstacles[i].position.y,0.0f));
         dist = vmag(v_dist);
         if (obstacles[i].id >= MIN_OBSTACLE_ID && dist < SEPARATION_RADIUS) {

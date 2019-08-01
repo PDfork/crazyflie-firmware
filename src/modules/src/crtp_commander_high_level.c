@@ -117,7 +117,8 @@ struct obstacleDescription
 uint8_t trajectories_memory[TRAJECTORY_MEMORY_SIZE];
 static struct trajectoryDescription trajectory_descriptions[NUM_TRAJECTORY_DEFINITIONS];
 uint8_t obstacles_memory[OBSTACLE_MEMORY_SIZE];
-static struct obstacleDescription obstacle_descriptions[MAX_OBSTACLES];
+struct obstacleDescription obstacle_dyn_descriptions[MAX_DYN_OBSTACLES];
+struct obstacleDescription obstacle_stat_descriptions[MAX_STAT_OBSTACLES];
 
 static bool isInit = false;
 static struct planner planner;
@@ -439,10 +440,22 @@ int define_trajectory(const struct data_define_trajectory* data)
 
 int update_obstacle(const struct data_update_obstacle* data)
 {
-  uint8_t temp_id = data->obstacleId - MIN_OBSTACLE_ID;
-  if (temp_id >= MAX_OBSTACLES) {
-    return ENOEXEC;
+  switch(data->description.obstacleLocation)
+  {
+    case OBSTACLE_STATIC:
+      if (data->obstacleId >= MAX_STAT_OBSTACLES) {
+        return ENOEXEC;
+      }
+      obstacle_stat_descriptions[temp_id] = data->description;
+      break;
+    case OBSTACLE_DYNAMIC:
+      if (data->obstacleId >= MAX_DYN_OBSTACLES) {
+        return ENOEXEC;
+      }
+      obstacle_dyn_descriptions[temp_id] = data->description;
+      break;
+    default:
+      return ENOEXEC;
   }
-  obstacle_descriptions[temp_id] = data->description;
   return 0;
 }

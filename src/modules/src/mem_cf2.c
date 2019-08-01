@@ -68,7 +68,7 @@
 #define LOCO_ID         0x02
 #define TRAJ_ID         0x03
 #define OW_FIRST_ID     0x04
-// #define OBST_ID         0x05 // by PatrickD
+#define OBST_ID         0x05 // by PatrickD
 
 #define STATUS_OK 0
 
@@ -77,6 +77,7 @@
 #define MEM_TYPE_LED12  0x10
 #define MEM_TYPE_LOCO   0x11
 #define MEM_TYPE_TRAJ   0x12
+#define MEM_TYPE_OBST   0x13
 
 #define MEM_LOCO_INFO             0x0000
 #define MEM_LOCO_ANCHOR_BASE      0x1000
@@ -198,6 +199,9 @@ void createInfoResponse(CRTPPacket* p, uint8_t memId)
     case TRAJ_ID:
       createInfoResponseBody(p, MEM_TYPE_TRAJ, sizeof(trajectories_memory), noData);
       break;
+    case OBST_ID: // by PatrickD
+      createInfoResponseBody(p, MEM_TYPE_OBST, sizeof(obstacles_memory), noData);
+      break;
     default:
       if (owGetinfo(memId - OW_FIRST_ID, &serialNbr))
       {
@@ -263,6 +267,17 @@ void memReadProcess()
       {
         if (memAddr + readLen <= sizeof(trajectories_memory) &&
             memcpy(&p.data[6], &(trajectories_memory[memAddr]), readLen)) {
+          status = STATUS_OK;
+        } else {
+          status = EIO;
+        }
+      }
+      break;
+
+    case OBST_ID: // by PatrickD
+      {
+        if (memAddr + readLen <= sizeof(obstacles_memory) &&
+            memcpy(&p.data[6], &(obstacles_memory[memAddr]), readLen)) {
           status = STATUS_OK;
         } else {
           status = EIO;
@@ -390,6 +405,17 @@ void memWriteProcess()
       {
         if ((memAddr + writeLen) <= sizeof(trajectories_memory)) {
           memcpy(&(trajectories_memory[memAddr]), &p.data[5], writeLen);
+          status = STATUS_OK;
+        } else {
+          status = EIO;
+        }
+      }
+      break;
+
+    case OBST_ID:
+      {
+        if ((memAddr + writeLen) <= sizeof(obstacles_memory)) {
+          memcpy(&(obstacles_memory[memAddr]), &p.data[5], writeLen);
           status = STATUS_OK;
         } else {
           status = EIO;

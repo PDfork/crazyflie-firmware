@@ -207,6 +207,22 @@ struct data_flocking {
   uint32_t lastTime;
 };
 
+struct data_line_obstacle {
+  struct vec p0;
+  struct vec dir;
+} __attribute__((packed));
+
+struct data_circle_obstacle {
+  struct vec p0;
+  float r;
+} __attribute__((packed));
+
+struct data_box_obstacle {
+  struct vec p0;
+  float a;
+  float b;
+} __attribute__((packed));
+
 struct data_set_group {
   uint8_t group;
 } __attribute__((packed));

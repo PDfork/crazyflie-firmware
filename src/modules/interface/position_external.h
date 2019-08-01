@@ -55,7 +55,7 @@ extern uint8_t numExternalTarget;
 extern uint8_t numExternalDrone;
 extern struct data_start_avoid_target avoidTarget[5];
 extern struct data_flocking neighborDrones[5];
-extern struct data_flocking obstacles[MAX_OBSTACLES];
+extern struct data_flocking obstacles[MAX_DYN_OBSTACLES];
 
 // Parameter for the separation
 extern float SEARCH_RADIUS;

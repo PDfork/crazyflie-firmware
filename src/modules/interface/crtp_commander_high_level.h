@@ -57,8 +57,11 @@ extern uint8_t trajectories_memory[TRAJECTORY_MEMORY_SIZE];
 // allocate memory for obstacles (added by PatrickD)
 #define OBSTACLE_MEMORY_SIZE 1024
 extern uint8_t obstacles_memory[OBSTACLE_MEMORY_SIZE];
+extern struct obstacleDescription obstacle_dyn_descriptions[MAX_DYN_OBSTACLES];
+extern struct obstacleDescription obstacle_stat_descriptions[MAX_STAT_OBSTACLES];
 
-#define MAX_OBSTACLES 5
+#define MAX_DYN_OBSTACLES 5
+#define MAX_STAT_OBSTACLES 15
 #define MIN_OBSTACLE_ID 200
 
 /* Public functions */
